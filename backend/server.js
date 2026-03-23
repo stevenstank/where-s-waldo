@@ -2,6 +2,7 @@ const express = require("express");
 const { PORT } = require("./config/env");
 const healthRoutes = require("./routes/healthRoutes");
 const authRoutes = require("./routes/authRoutes");
+const gameRoutes = require("./routes/gameRoutes");
 const { notFoundHandler } = require("./middleware/errorHandler");
 const prisma = require("./config/prisma");
 
@@ -10,6 +11,7 @@ const app = express();
 app.use(express.json());
 app.use("/api", healthRoutes);
 app.use("/api/auth", authRoutes);
+app.use("/api/game", gameRoutes);
 app.use(notFoundHandler);
 
 const startServer = async () => {
