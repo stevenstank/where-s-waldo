@@ -88,7 +88,7 @@ function App() {
   };
 
   return (
-    <>
+    <div className="app-shell">
       <Navbar
         user={user}
         onOpenLogin={openLogin}
@@ -96,17 +96,19 @@ function App() {
         onLogout={handleLogout}
       />
 
-      <Routes>
-        <Route path="/" element={<Home user={user} onRequireAuth={handleRequireAuth} />} />
-        <Route
-          path="/leaderboard"
-          element={
-            <ProtectedRoute isAuthenticated={Boolean(user)} onRequireAuth={handleRequireAuth}>
-              <Leaderboard />
-            </ProtectedRoute>
-          }
-        />
-      </Routes>
+      <div className="app-main">
+        <Routes>
+          <Route path="/" element={<Home user={user} onRequireAuth={handleRequireAuth} />} />
+          <Route
+            path="/leaderboard"
+            element={
+              <ProtectedRoute isAuthenticated={Boolean(user)} onRequireAuth={handleRequireAuth}>
+                <Leaderboard />
+              </ProtectedRoute>
+            }
+          />
+        </Routes>
+      </div>
 
       <AuthModal
         mode={authMode}
@@ -115,7 +117,7 @@ function App() {
         onLogin={handleLogin}
         onSignUp={handleSignUp}
       />
-    </>
+    </div>
   );
 }
 

@@ -1,4 +1,5 @@
 import { useState } from "react";
+import "./AuthModal.css";
 
 function AuthModal({ mode, isOpen, onClose, onLogin, onSignUp }) {
   const [username, setUsername] = useState("");
@@ -39,50 +40,33 @@ function AuthModal({ mode, isOpen, onClose, onLogin, onSignUp }) {
   };
 
   return (
-    <div
-      style={{
-        position: "fixed",
-        inset: 0,
-        background: "rgba(0,0,0,0.4)",
-        display: "grid",
-        placeItems: "center",
-        zIndex: 20,
-      }}
-      onClick={onClose}
-    >
-      <div
-        onClick={(event) => event.stopPropagation()}
-        style={{
-          width: "100%",
-          maxWidth: "420px",
-          background: "#fff",
-          borderRadius: "10px",
-          padding: "20px",
-        }}
-      >
-        <h2 style={{ marginTop: 0 }}>{isLoginMode ? "Login" : "Sign Up"}</h2>
+    <div className="auth-modal-backdrop" onClick={onClose}>
+      <div className="auth-modal card" onClick={(event) => event.stopPropagation()}>
+        <h2 className="auth-modal__title">{isLoginMode ? "Login" : "Sign Up"}</h2>
 
-        <form onSubmit={handleSubmit} style={{ display: "grid", gap: "10px" }}>
+        <form onSubmit={handleSubmit} className="auth-modal__form">
           <input
             type="text"
             placeholder="Username"
             value={username}
             onChange={(event) => setUsername(event.target.value)}
+            className="auth-modal__input"
           />
           <input
             type="password"
             placeholder="Password"
             value={password}
             onChange={(event) => setPassword(event.target.value)}
+            className="auth-modal__input"
           />
 
-          {error ? <p style={{ color: "#b00020", margin: 0 }}>{error}</p> : null}
+          {error ? <p className="auth-modal__error">{error}</p> : null}
 
-          <div style={{ display: "flex", gap: "8px", justifyContent: "flex-end" }}>
-            <button type="button" onClick={onClose}>
+          <div className="auth-modal__actions">
+            <button type="button" className="button-secondary" onClick={onClose}>
               Cancel
             </button>
-            <button type="submit" disabled={isSubmitting}>
+            <button type="submit" className="button-primary" disabled={isSubmitting}>
               {isSubmitting ? "Please wait..." : isLoginMode ? "Login" : "Create account"}
             </button>
           </div>

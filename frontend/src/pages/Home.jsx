@@ -1,8 +1,9 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import "./Home.css";
 import {
   finishGame,
   getGameSceneUrl,
+  getLeaderboard,
   startGame,
   submitScore,
   validateClick,
@@ -27,6 +28,8 @@ function Home({ user, onRequireAuth }) {
   const [isSubmittingScore, setIsSubmittingScore] = useState(false);
   const [hasSubmittedScore, setHasSubmittedScore] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
+  const [leaderboardRows, setLeaderboardRows] = useState([]);
+  const [leaderboardError, setLeaderboardError] = useState("");
   const [scale, setScale] = useState(1);
   const [translate, setTranslate] = useState({ x: 0, y: 0 });
   const [isDragging, setIsDragging] = useState(false);
@@ -57,6 +60,27 @@ function Home({ user, onRequireAuth }) {
     setScale(1);
     setTranslate({ x: 0, y: 0 });
   };
+
+  const loadLeaderboard = useCallback(async () => {
+    try {
+      const rows = await getLeaderboard();
+      setLeaderboardRows(rows || []);
+      setLeaderboardError("");
+    } catch (error) {
+      setLeaderboardError(error.message || "Failed to load leaderboard.");
+    }
+  }, []);
+
+  const startNewGame = useCallback(async () => {
+    clearRuntimeState();
+    try {
+      const session = await startGame();
+      setGameId(session.gameId);
+      setSceneUrl(getGameSceneUrl(session.gameId));
+    } catch {
+      setErrorMessage("Failed to start game session.");
+    }
+  }, []);
 
   const handleImageMouseDown = (event) => {
     if (!canPan) {
@@ -202,6 +226,7 @@ function Home({ user, onRequireAuth }) {
           token: storedToken || undefined,
         });
         setHasSubmittedScore(true);
+        await loadLeaderboard();
       } catch (error) {
         setErrorMessage(error.message || "Failed to submit score.");
       } finally {
@@ -210,25 +235,19 @@ function Home({ user, onRequireAuth }) {
     };
 
     submitLoggedInScore();
-  }, [completedTimeTaken, gameId, hasSubmittedScore, isLoggedIn, isSubmittingScore, storedToken]);
+  }, [completedTimeTaken, gameId, hasSubmittedScore, isLoggedIn, isSubmittingScore, loadLeaderboard, storedToken]);
 
   useEffect(() => {
     const initGame = async () => {
-      try {
-        clearRuntimeState();
-        const session = await startGame();
-        setGameId(session.gameId);
-        setSceneUrl(getGameSceneUrl(session.gameId));
-      } catch {
-        setErrorMessage("Failed to start game session.");
-      }
+      await startNewGame();
+      await loadLeaderboard();
     };
 
     initGame();
     return () => {
       setIsDragging(false);
     };
-  }, []);
+  }, [loadLeaderboard, startNewGame]);
 
   useEffect(() => {
     if (!gameId) {
@@ -248,68 +267,100 @@ function Home({ user, onRequireAuth }) {
 
   return (
     <main className="home-page">
-      <h1>Where is Waldo</h1>
-      <p className="game-subtitle">
-        Search the crowd and click Waldo. Use mouse wheel to zoom and drag to pan.
-      </p>
+      <section className="hud card">
+        <div className="hud__left">
+          <h1>Where is Waldo</h1>
+          <p className="game-subtitle">
+            Find Waldo in the chaos. Zoom with your wheel, pan by dragging when zoomed.
+          </p>
+        </div>
 
-      {completedTimeTaken !== null ? (
-        <section className="completion-card">
-          <h2>Game Completed!</h2>
-          <p>Final Time: {completedTimeTaken.toFixed(2)}s</p>
-
-          {!isLoggedIn ? (
-            <div style={{ display: "flex", gap: "10px", alignItems: "center", flexWrap: "wrap" }}>
-              <p style={{ margin: 0 }}>You played in guest mode. Log in to save your score.</p>
-              <button type="button" onClick={onRequireAuth}>
-                Login to Save
-              </button>
-            </div>
-          ) : null}
-
-          {isLoggedIn && !hasSubmittedScore ? <p>Submitting score...</p> : null}
-
-          {hasSubmittedScore ? <p>Score submitted successfully.</p> : null}
-
-        </section>
-      ) : null}
-
-      <p className="status-line">Timer: {elapsedSeconds}s</p>
-      <p className="status-line">Waldo: {hasFoundWaldo ? "Found" : "Hidden"}</p>
-
-      <section
-        className="scene-frame"
-        onWheel={handleWheelZoom}
-      >
-        <img
-          ref={imageRef}
-          src={sceneUrl}
-          alt="Where is Waldo game"
-          onClick={handleImageClick}
-          onMouseDown={handleImageMouseDown}
-          onMouseMove={handleImageMouseMove}
-          onMouseUp={handleImageMouseUp}
-          onMouseLeave={handleImageMouseUp}
-          draggable={false}
-          className="scene-image"
-          style={{
-            cursor: imageCursor,
-            transform: `translate(${translate.x}px, ${translate.y}px) scale(${scale})`,
-          }}
-        />
-
-        {resultPulse ? (
-          <div
-            key={resultPulse.key}
-            className={`result-pulse result-${resultPulse.status}`}
-            style={{ left: `${resultPulse.x}%`, top: `${resultPulse.y}%` }}
-          />
-        ) : null}
+        <div className="hud__right">
+          <span className="badge">⏱ Timer: {elapsedSeconds}s</span>
+          <span className="badge">🔎 Found: {hasFoundWaldo ? "1/1" : "0/1"}</span>
+          <button className="button-primary" type="button" onClick={startNewGame}>
+            {gameId ? "Restart Game" : "Start Game"}
+          </button>
+        </div>
       </section>
 
-      {errorMessage ? (
-        <p className="error-text">{errorMessage}</p>
-      ) : null}
+      <section className="game-layout">
+        <section className="game-main card">
+          {completedTimeTaken !== null ? (
+            <section className="completion-card">
+              <h2>Game Completed!</h2>
+              <p>Final Time: {completedTimeTaken.toFixed(2)}s</p>
+
+              {!isLoggedIn ? (
+                <div className="completion-login-note">
+                  <p>You played in guest mode. Log in to save your score.</p>
+                  <button className="button-secondary" type="button" onClick={onRequireAuth}>
+                    Login to Save
+                  </button>
+                </div>
+              ) : null}
+
+              {isLoggedIn && !hasSubmittedScore ? <p>Submitting score...</p> : null}
+
+              {hasSubmittedScore ? <p>Score submitted successfully.</p> : null}
+            </section>
+          ) : null}
+
+          <section
+            className="scene-frame"
+            onWheel={handleWheelZoom}
+          >
+            <img
+              ref={imageRef}
+              src={sceneUrl}
+              alt="Where is Waldo game"
+              onClick={handleImageClick}
+              onMouseDown={handleImageMouseDown}
+              onMouseMove={handleImageMouseMove}
+              onMouseUp={handleImageMouseUp}
+              onMouseLeave={handleImageMouseUp}
+              draggable={false}
+              className="scene-image"
+              style={{
+                cursor: imageCursor,
+                transform: `translate(${translate.x}px, ${translate.y}px) scale(${scale})`,
+              }}
+            />
+
+            {resultPulse ? (
+              <div
+                key={resultPulse.key}
+                className={`result-pulse result-${resultPulse.status}`}
+                style={{ left: `${resultPulse.x}%`, top: `${resultPulse.y}%` }}
+              />
+            ) : null}
+          </section>
+
+          {errorMessage ? (
+            <p className="error-text">{errorMessage}</p>
+          ) : null}
+        </section>
+
+        <aside className="leaderboard-sidebar card">
+          <h3>Top Hunters</h3>
+          {leaderboardError ? <p className="error-text">{leaderboardError}</p> : null}
+          {leaderboardRows.length === 0 ? <p className="empty-state">No scores yet.</p> : null}
+
+          {leaderboardRows.length > 0 ? (
+            <ol className="mini-leaderboard">
+              {leaderboardRows.slice(0, 10).map((entry, index) => (
+                <li key={`${entry.name}-${entry.timeTaken}-${index}`} className="mini-leaderboard__row">
+                  <span className={`rank rank-${Math.min(index + 1, 3)}`}>#{index + 1}</span>
+                  <span className="mini-leaderboard__name">{entry.name}</span>
+                  <span className="mini-leaderboard__meta">
+                    {entry.isGuest ? "Guest" : "Account"} · {entry.timeTaken.toFixed(2)}s
+                  </span>
+                </li>
+              ))}
+            </ol>
+          ) : null}
+        </aside>
+      </section>
     </main>
   );
 }

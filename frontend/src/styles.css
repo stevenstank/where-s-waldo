@@ -1,0 +1,99 @@
+:root {
+  color-scheme: dark;
+  --bg: #0a111e;
+  --bg-soft: #121c2c;
+  --panel: #17253a;
+  --panel-alt: #1f314b;
+  --line: #2c425f;
+  --text: #e8f2ff;
+  --text-muted: #8fa7c7;
+  --accent: #41d4a8;
+  --accent-strong: #11b48c;
+  --danger: #ff5d7a;
+  --gold: #ffc85a;
+  --silver: #c9d6f2;
+  --bronze: #f4ac6f;
+  --shadow: 0 16px 36px rgba(0, 0, 0, 0.35);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: "Space Grotesk", "Segoe UI", sans-serif;
+  background:
+    radial-gradient(circle at 15% -10%, rgba(65, 212, 168, 0.15), transparent 35%),
+    radial-gradient(circle at 100% 0%, rgba(90, 130, 255, 0.2), transparent 42%),
+    linear-gradient(180deg, #0a111e 0%, #0c1523 100%);
+  color: var(--text);
+  min-height: 100vh;
+}
+
+a {
+  color: inherit;
+}
+
+button,
+input,
+select {
+  font: inherit;
+}
+
+.app-shell {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.app-main {
+  width: min(1320px, calc(100% - 32px));
+  margin: 20px auto 28px;
+}
+
+.card {
+  background: linear-gradient(180deg, var(--panel) 0%, var(--panel-alt) 100%);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  box-shadow: var(--shadow);
+}
+
+.button-primary {
+  border: none;
+  background: linear-gradient(120deg, var(--accent), var(--accent-strong));
+  color: #052a20;
+  font-weight: 700;
+  padding: 10px 14px;
+  border-radius: 10px;
+  cursor: pointer;
+}
+
+.button-secondary {
+  border: 1px solid var(--line);
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text);
+  font-weight: 600;
+  padding: 10px 14px;
+  border-radius: 10px;
+  cursor: pointer;
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: rgba(7, 14, 24, 0.72);
+  color: var(--text);
+  padding: 6px 12px;
+  font-weight: 600;
+}
+
+@media (max-width: 900px) {
+  .app-main {
+    width: calc(100% - 20px);
+    margin-top: 14px;
+  }
+}

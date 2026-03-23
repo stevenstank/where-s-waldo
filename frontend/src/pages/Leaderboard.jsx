@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { getLeaderboard } from "../services/api";
+import "./Leaderboard.css";
 
 function Leaderboard() {
   const [rows, setRows] = useState([]);
@@ -19,19 +20,39 @@ function Leaderboard() {
   }, []);
 
   return (
-    <main style={{ padding: "24px" }}>
+    <main className="leaderboard-page card">
       <h1>Leaderboard</h1>
-      {error ? <p style={{ color: "#b00020" }}>{error}</p> : null}
+      {error ? <p className="leaderboard-error">{error}</p> : null}
+
       {rows.length > 0 ? (
-        <ol style={{ paddingLeft: "20px" }}>
-          {rows.map((entry, index) => (
-            <li key={`${entry.name}-${entry.timeTaken}-${index}`}>
-              {entry.name} - {entry.timeTaken}s
-            </li>
-          ))}
-        </ol>
+        <div className="leaderboard-table-wrap">
+          <table className="leaderboard-table">
+            <thead>
+              <tr>
+                <th>Rank</th>
+                <th>Player</th>
+                <th>Type</th>
+                <th>Time</th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((entry, index) => (
+                <tr key={`${entry.name}-${entry.timeTaken}-${index}`} className={`rank-row rank-row-${Math.min(index + 1, 3)}`}>
+                  <td>#{index + 1}</td>
+                  <td>{entry.name}</td>
+                  <td>
+                    <span className={`type-pill ${entry.isGuest ? "type-pill-guest" : "type-pill-auth"}`}>
+                      {entry.isGuest ? "Guest" : "Account"}
+                    </span>
+                  </td>
+                  <td>{entry.timeTaken.toFixed(2)}s</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       ) : (
-        <p>No scores yet.</p>
+        <p className="leaderboard-empty">No scores yet.</p>
       )}
     </main>
   );

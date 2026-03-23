@@ -97,6 +97,7 @@ const getLeaderboard = async (req, res, next) => {
     const formatted = leaderboard.map((entry) => ({
       name: entry.user?.username || entry.name || "Guest",
       timeTaken: entry.timeTaken,
+      isGuest: !entry.user,
     }));
 
     return res.status(200).json(formatted);
