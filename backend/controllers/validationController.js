@@ -3,10 +3,10 @@ const ApiError = require("../utils/apiError");
 
 const validateCharacter = async (req, res, next) => {
   try {
-    const { gameId, characterName, x, y } = req.body;
+    const { gameId, x, y } = req.body;
 
-    if (!gameId || !characterName || typeof x !== "number" || typeof y !== "number") {
-      throw new ApiError(400, "gameId, characterName, x, and y are required");
+    if (!gameId || typeof x !== "number" || typeof y !== "number") {
+      throw new ApiError(400, "gameId, x, and y are required");
     }
 
     if (!Number.isFinite(x) || !Number.isFinite(y)) {
@@ -19,29 +19,22 @@ const validateCharacter = async (req, res, next) => {
 
     const game = await prisma.game.findUnique({
       where: { id: gameId },
-      select: { id: true },
+      select: {
+        id: true,
+        waldoX: true,
+        waldoY: true,
+        waldoTolerance: true,
+      },
     });
 
     if (!game) {
       throw new ApiError(404, "game not found");
     }
 
-    const character = await prisma.character.findUnique({
-      where: { name: characterName },
-      select: {
-        x: true,
-        y: true,
-        tolerance: true,
-      },
-    });
-
-    if (!character) {
-      return res.status(200).json({ success: false });
-    }
-
-    const success =
-      Math.abs(x - character.x) <= character.tolerance &&
-      Math.abs(y - character.y) <= character.tolerance;
+    const dx = x - game.waldoX;
+    const dy = y - game.waldoY;
+    const distance = Math.sqrt(dx * dx + dy * dy);
+    const success = distance <= game.waldoTolerance;
 
     return res.status(200).json({ success });
   } catch (error) {

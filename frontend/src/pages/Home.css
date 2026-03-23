@@ -1,0 +1,85 @@
+.home-page {
+  padding: 24px;
+}
+
+.game-subtitle {
+  margin: 4px 0 16px;
+  color: #334155;
+}
+
+.completion-card {
+  margin-bottom: 16px;
+  padding: 16px;
+  border: 2px solid #147a35;
+  border-radius: 8px;
+  background: #e8f7ec;
+}
+
+.completion-card h2 {
+  margin-top: 0;
+}
+
+.status-line {
+  margin-bottom: 10px;
+}
+
+.scene-frame {
+  position: relative;
+  width: 100%;
+  max-width: 1400px;
+  border-radius: 10px;
+  overflow: hidden;
+  border: 1px solid #cbd5e1;
+  box-shadow: 0 12px 30px rgba(15, 23, 42, 0.15);
+  user-select: none;
+}
+
+.scene-image {
+  width: 100%;
+  display: block;
+  transform-origin: center center;
+  transition: transform 120ms ease;
+}
+
+.result-pulse {
+  position: absolute;
+  width: 18px;
+  height: 18px;
+  border-radius: 999px;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+  animation: ping 0.9s ease-out;
+}
+
+.result-correct {
+  border: 3px solid #17a34a;
+  box-shadow: 0 0 0 4px rgba(23, 163, 74, 0.2);
+}
+
+.result-miss {
+  border: 3px solid #e11d48;
+  box-shadow: 0 0 0 4px rgba(225, 29, 72, 0.18);
+}
+
+.error-text {
+  color: #b00020;
+  margin-top: 12px;
+}
+
+@keyframes ping {
+  0% {
+    opacity: 0.95;
+    transform: translate(-50%, -50%) scale(0.35);
+  }
+
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(2.4);
+  }
+}
+
+@media (max-width: 768px) {
+  .home-page {
+    padding: 16px;
+  }
+}

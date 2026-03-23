@@ -19,6 +19,9 @@ model Game {
   id        String   @id @default(uuid())
   userId    String?
   user      User?    @relation(fields: [userId], references: [id])
+  waldoX    Float   @default(50)
+  waldoY    Float   @default(50)
+  waldoTolerance Float @default(2.2)
   startTime DateTime
   endTime   DateTime?
   completed Boolean  @default(false)

@@ -1,5 +1,4 @@
 const BASE_URL = (import.meta.env.VITE_API_URL || "").replace(/\/+$/, "");
-console.log("API URL:", BASE_URL);
 const TOKEN_KEY = "token";
 
 const getStoredToken = () => localStorage.getItem(TOKEN_KEY) || "";
@@ -56,10 +55,12 @@ export const startGame = async (token) =>
     body: JSON.stringify({}),
   });
 
-export const validateClick = async ({ gameId, characterName, x, y }) =>
+export const getGameSceneUrl = (gameId) => `${BASE_URL}/api/game/${gameId}/scene.svg`;
+
+export const validateClick = async ({ gameId, x, y }) =>
   request(`${BASE_URL}/api/validate`, {
     method: "POST",
-    body: JSON.stringify({ gameId, characterName, x, y }),
+    body: JSON.stringify({ gameId, x, y }),
   });
 
 export const finishGame = async (gameId) =>

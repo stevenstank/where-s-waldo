@@ -1,34 +1,117 @@
-import { useEffect, useRef, useState } from "react";
-import gameImage from "../assets/game-image.svg";
+import { useEffect, useMemo, useRef, useState } from "react";
+import "./Home.css";
 import {
   finishGame,
+  getGameSceneUrl,
   startGame,
   submitScore,
   validateClick,
 } from "../services/api";
 
-const ALL_CHARACTERS = ["Waldo", "Wizard", "Wilma"];
+const MIN_SCALE = 1;
+const MAX_SCALE = 4;
+const ZOOM_STEP = 0.2;
 
 function Home({ user, onRequireAuth }) {
   const storedToken = localStorage.getItem("token") || "";
   const isLoggedIn = Boolean(user);
 
   const [gameId, setGameId] = useState(null);
+  const [sceneUrl, setSceneUrl] = useState("");
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
-  const [targetBox, setTargetBox] = useState(null);
-  const [selectedCharacter, setSelectedCharacter] = useState("");
-  const [markers, setMarkers] = useState([]);
-  const [foundCharacters, setFoundCharacters] = useState([]);
+  const [hasFoundWaldo, setHasFoundWaldo] = useState(false);
+  const [resultPulse, setResultPulse] = useState(null);
+  const [isValidatingClick, setIsValidatingClick] = useState(false);
   const [completedTimeTaken, setCompletedTimeTaken] = useState(null);
   const [isCompletingGame, setIsCompletingGame] = useState(false);
   const [isSubmittingScore, setIsSubmittingScore] = useState(false);
   const [hasSubmittedScore, setHasSubmittedScore] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
-  const imageAreaRef = useRef(null);
+  const [scale, setScale] = useState(1);
+  const [translate, setTranslate] = useState({ x: 0, y: 0 });
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragOrigin, setDragOrigin] = useState({ x: 0, y: 0 });
 
-  const handleImageClick = (event) => {
+  const imageRef = useRef(null);
+
+  const canPan = scale > 1;
+  const imageCursor = useMemo(() => {
+    if (isDragging) {
+      return "grabbing";
+    }
+
+    return canPan ? "grab" : "crosshair";
+  }, [canPan, isDragging]);
+
+  const clampScale = (nextScale) => Math.max(MIN_SCALE, Math.min(MAX_SCALE, nextScale));
+
+  const clearRuntimeState = () => {
+    setElapsedSeconds(0);
+    setHasFoundWaldo(false);
+    setResultPulse(null);
+    setCompletedTimeTaken(null);
+    setIsCompletingGame(false);
+    setIsSubmittingScore(false);
+    setHasSubmittedScore(false);
+    setErrorMessage("");
+    setScale(1);
+    setTranslate({ x: 0, y: 0 });
+  };
+
+  const handleImageMouseDown = (event) => {
+    if (!canPan) {
+      return;
+    }
+
+    setIsDragging(true);
+    setDragOrigin({
+      x: event.clientX - translate.x,
+      y: event.clientY - translate.y,
+    });
+  };
+
+  const handleImageMouseMove = (event) => {
+    if (!isDragging || !canPan) {
+      return;
+    }
+
+    setTranslate({
+      x: event.clientX - dragOrigin.x,
+      y: event.clientY - dragOrigin.y,
+    });
+  };
+
+  const handleImageMouseUp = () => {
+    setIsDragging(false);
+  };
+
+  const handleWheelZoom = (event) => {
+    event.preventDefault();
+    const direction = event.deltaY > 0 ? -1 : 1;
+    const nextScale = clampScale(scale + direction * ZOOM_STEP);
+
+    if (nextScale === MIN_SCALE) {
+      setTranslate({ x: 0, y: 0 });
+    }
+
+    setScale(nextScale);
+  };
+
+  const handleImageClick = async (event) => {
     if (!gameId) {
       setErrorMessage("Game session is not ready. Please wait...");
+      return;
+    }
+
+    if (hasFoundWaldo || completedTimeTaken !== null || isValidatingClick) {
+      return;
+    }
+
+    if (isDragging) {
+      return;
+    }
+
+    if (!imageRef.current) {
       return;
     }
 
@@ -43,54 +126,45 @@ function Home({ user, onRequireAuth }) {
       x: Math.max(0, Math.min(100, x)),
       y: Math.max(0, Math.min(100, y)),
     };
-
-    setSelectedCharacter("");
     setErrorMessage("");
-    setTargetBox(nextPosition);
-    console.log("Click coordinates (%):", nextPosition);
-  };
 
-  const handleCharacterSelect = async (event) => {
-    const characterName = event.target.value;
-    setSelectedCharacter(characterName);
-
-    if (!targetBox || !gameId || !characterName) {
-      return;
-    }
-
-    if (foundCharacters.includes(characterName)) {
-      setErrorMessage(`${characterName} is already found.`);
-      setTargetBox(null);
-      setSelectedCharacter("");
-      return;
-    }
+    setIsValidatingClick(true);
 
     try {
       const result = await validateClick({
         gameId,
-        characterName,
-        x: targetBox.x,
-        y: targetBox.y,
+        x: nextPosition.x,
+        y: nextPosition.y,
       });
 
       if (result.success) {
-        setMarkers((prev) => [...prev, { ...targetBox, characterName }]);
-        setFoundCharacters((prev) => [...prev, characterName]);
+        setHasFoundWaldo(true);
+        setResultPulse({
+          x: nextPosition.x,
+          y: nextPosition.y,
+          status: "correct",
+          key: Date.now(),
+        });
         setErrorMessage("");
       } else {
+        setResultPulse({
+          x: nextPosition.x,
+          y: nextPosition.y,
+          status: "miss",
+          key: Date.now(),
+        });
         setErrorMessage("Not a match. Try another spot.");
       }
     } catch (error) {
       setErrorMessage(error.message || "Validation failed");
     } finally {
-      setTargetBox(null);
-      setSelectedCharacter("");
+      setIsValidatingClick(false);
     }
   };
 
   useEffect(() => {
     const finishCurrentGame = async () => {
-      if (!gameId || foundCharacters.length !== ALL_CHARACTERS.length || isCompletingGame) {
+      if (!gameId || !hasFoundWaldo || isCompletingGame) {
         return;
       }
 
@@ -106,7 +180,7 @@ function Home({ user, onRequireAuth }) {
     };
 
     finishCurrentGame();
-  }, [foundCharacters, gameId, isCompletingGame]);
+  }, [gameId, hasFoundWaldo, isCompletingGame]);
 
   useEffect(() => {
     if (!isLoggedIn || completedTimeTaken === null || hasSubmittedScore) {
@@ -141,28 +215,18 @@ function Home({ user, onRequireAuth }) {
   useEffect(() => {
     const initGame = async () => {
       try {
+        clearRuntimeState();
         const session = await startGame();
         setGameId(session.gameId);
+        setSceneUrl(getGameSceneUrl(session.gameId));
       } catch {
         setErrorMessage("Failed to start game session.");
       }
     };
 
     initGame();
-
-    const handleDocumentMouseDown = (event) => {
-      if (!imageAreaRef.current) {
-        return;
-      }
-
-      if (!imageAreaRef.current.contains(event.target)) {
-        setTargetBox(null);
-      }
-    };
-
-    document.addEventListener("mousedown", handleDocumentMouseDown);
     return () => {
-      document.removeEventListener("mousedown", handleDocumentMouseDown);
+      setIsDragging(false);
     };
   }, []);
 
@@ -183,20 +247,15 @@ function Home({ user, onRequireAuth }) {
   }, [gameId]);
 
   return (
-    <main style={{ padding: "24px" }}>
+    <main className="home-page">
       <h1>Where is Waldo</h1>
+      <p className="game-subtitle">
+        Search the crowd and click Waldo. Use mouse wheel to zoom and drag to pan.
+      </p>
 
       {completedTimeTaken !== null ? (
-        <section
-          style={{
-            marginBottom: "16px",
-            padding: "16px",
-            border: "2px solid #147a35",
-            borderRadius: "8px",
-            background: "#e8f7ec",
-          }}
-        >
-          <h2 style={{ marginTop: 0 }}>Game Completed!</h2>
+        <section className="completion-card">
+          <h2>Game Completed!</h2>
           <p>Final Time: {completedTimeTaken.toFixed(2)}s</p>
 
           {!isLoggedIn ? (
@@ -215,90 +274,41 @@ function Home({ user, onRequireAuth }) {
         </section>
       ) : null}
 
-      <p style={{ marginBottom: "12px" }}>Timer: {elapsedSeconds}s</p>
-      <p style={{ marginBottom: "12px" }}>
-        Found: {foundCharacters.join(", ") || "None"}
-      </p>
-      <div
-        ref={imageAreaRef}
-        style={{
-          position: "relative",
-          width: "100%",
-          maxWidth: "1200px",
-          display: "inline-block",
-        }}
+      <p className="status-line">Timer: {elapsedSeconds}s</p>
+      <p className="status-line">Waldo: {hasFoundWaldo ? "Found" : "Hidden"}</p>
+
+      <section
+        className="scene-frame"
+        onWheel={handleWheelZoom}
       >
         <img
-          src={gameImage}
+          ref={imageRef}
+          src={sceneUrl}
           alt="Where is Waldo game"
           onClick={handleImageClick}
+          onMouseDown={handleImageMouseDown}
+          onMouseMove={handleImageMouseMove}
+          onMouseUp={handleImageMouseUp}
+          onMouseLeave={handleImageMouseUp}
+          draggable={false}
+          className="scene-image"
           style={{
-            width: "100%",
-            display: "block",
-            cursor: "crosshair",
+            cursor: imageCursor,
+            transform: `translate(${translate.x}px, ${translate.y}px) scale(${scale})`,
           }}
         />
 
-        {markers.map((marker, index) => (
+        {resultPulse ? (
           <div
-            key={`${marker.characterName}-${marker.x}-${marker.y}-${index}`}
-            title={marker.characterName}
-            style={{
-              position: "absolute",
-              left: `${marker.x}%`,
-              top: `${marker.y}%`,
-              transform: "translate(-50%, -50%)",
-              width: "14px",
-              height: "14px",
-              borderRadius: "999px",
-              background: "#12a650",
-              border: "2px solid #fff",
-              boxShadow: "0 0 0 2px #0b5",
-              pointerEvents: "none",
-              zIndex: 1,
-            }}
+            key={resultPulse.key}
+            className={`result-pulse result-${resultPulse.status}`}
+            style={{ left: `${resultPulse.x}%`, top: `${resultPulse.y}%` }}
           />
-        ))}
-
-        {targetBox ? (
-          <div
-            onClick={(event) => event.stopPropagation()}
-            style={{
-              position: "absolute",
-              left: `${targetBox.x}%`,
-              top: `${targetBox.y}%`,
-              transform: "translate(-50%, -50%)",
-              border: "2px solid #111",
-              background: "#fff",
-              padding: "6px",
-              borderRadius: "6px",
-              boxShadow: "0 8px 18px rgba(0, 0, 0, 0.2)",
-              zIndex: 2,
-            }}
-          >
-            <select
-              value={selectedCharacter}
-              onChange={handleCharacterSelect}
-            >
-              <option value="" disabled>
-                Select character
-              </option>
-              {ALL_CHARACTERS.map((character) => (
-                <option
-                  key={character}
-                  value={character}
-                  disabled={foundCharacters.includes(character)}
-                >
-                  {character}
-                </option>
-              ))}
-            </select>
-          </div>
         ) : null}
-      </div>
+      </section>
 
       {errorMessage ? (
-        <p style={{ color: "#b00020", marginTop: "12px" }}>{errorMessage}</p>
+        <p className="error-text">{errorMessage}</p>
       ) : null}
     </main>
   );
