@@ -1,4 +1,5 @@
 const express = require("express");
+const cors = require("cors");
 const { PORT } = require("./config/env");
 const healthRoutes = require("./routes/healthRoutes");
 const authRoutes = require("./routes/authRoutes");
@@ -10,6 +11,7 @@ const prisma = require("./config/prisma");
 
 const app = express();
 
+app.use(cors());
 app.use(express.json());
 app.get("/", (req, res) => {
   res.send("API is running...");

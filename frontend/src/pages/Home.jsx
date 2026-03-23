@@ -1,10 +1,20 @@
 import { useEffect, useRef, useState } from "react";
 import gameImage from "../assets/game-image.svg";
-import { finishGame, startGame, validateClick } from "../services/api";
+import {
+  finishGame,
+  getLeaderboard,
+  startGame,
+  submitScore,
+  validateClick,
+} from "../services/api";
 
 const ALL_CHARACTERS = ["Waldo", "Wizard", "Wilma"];
 
 function Home() {
+  const storedToken =
+    localStorage.getItem("token") || localStorage.getItem("authToken") || "";
+  const isLoggedIn = Boolean(storedToken);
+
   const [gameId, setGameId] = useState(null);
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const [targetBox, setTargetBox] = useState(null);
@@ -13,8 +23,48 @@ function Home() {
   const [foundCharacters, setFoundCharacters] = useState([]);
   const [completedTimeTaken, setCompletedTimeTaken] = useState(null);
   const [isCompletingGame, setIsCompletingGame] = useState(false);
+  const [guestName, setGuestName] = useState("");
+  const [isSubmittingScore, setIsSubmittingScore] = useState(false);
+  const [hasSubmittedScore, setHasSubmittedScore] = useState(false);
+  const [leaderboard, setLeaderboard] = useState([]);
   const [errorMessage, setErrorMessage] = useState("");
   const imageAreaRef = useRef(null);
+
+  const loadLeaderboard = async () => {
+    const scores = await getLeaderboard();
+    setLeaderboard(scores);
+  };
+
+  const handleSubmitScore = async (overrideName) => {
+    if (!gameId || completedTimeTaken === null || isSubmittingScore || hasSubmittedScore) {
+      return;
+    }
+
+    const submissionName = overrideName || guestName.trim();
+
+    if (!isLoggedIn && !submissionName) {
+      setErrorMessage("Please enter your name to submit score.");
+      return;
+    }
+
+    setIsSubmittingScore(true);
+    setErrorMessage("");
+
+    try {
+      await submitScore({
+        gameId,
+        timeTaken: completedTimeTaken,
+        name: isLoggedIn ? undefined : submissionName,
+        token: storedToken || undefined,
+      });
+      setHasSubmittedScore(true);
+      await loadLeaderboard();
+    } catch (error) {
+      setErrorMessage(error.message || "Failed to submit score.");
+    } finally {
+      setIsSubmittingScore(false);
+    }
+  };
 
   const handleImageClick = (event) => {
     if (!gameId) {
@@ -99,6 +149,14 @@ function Home() {
   }, [foundCharacters, gameId, isCompletingGame]);
 
   useEffect(() => {
+    if (completedTimeTaken === null || !isLoggedIn || hasSubmittedScore) {
+      return;
+    }
+
+    handleSubmitScore();
+  }, [completedTimeTaken, hasSubmittedScore, isLoggedIn]);
+
+  useEffect(() => {
     const initGame = async () => {
       try {
         const session = await startGame();
@@ -157,7 +215,44 @@ function Home() {
           }}
         >
           <h2 style={{ marginTop: 0 }}>Game Completed!</h2>
-          <p style={{ marginBottom: 0 }}>Final Time: {completedTimeTaken.toFixed(2)}s</p>
+          <p>Final Time: {completedTimeTaken.toFixed(2)}s</p>
+
+          {!isLoggedIn && !hasSubmittedScore ? (
+            <div style={{ display: "flex", gap: "8px", alignItems: "center", flexWrap: "wrap" }}>
+              <input
+                type="text"
+                placeholder="Enter your name"
+                value={guestName}
+                onChange={(event) => setGuestName(event.target.value)}
+              />
+              <button
+                type="button"
+                onClick={() => handleSubmitScore()}
+                disabled={isSubmittingScore}
+              >
+                {isSubmittingScore ? "Submitting..." : "Submit Score"}
+              </button>
+            </div>
+          ) : null}
+
+          {isLoggedIn && !hasSubmittedScore ? (
+            <p>{isSubmittingScore ? "Submitting score..." : "Submitting score automatically..."}</p>
+          ) : null}
+
+          {hasSubmittedScore ? <p>Score submitted successfully.</p> : null}
+
+          {leaderboard.length > 0 ? (
+            <section>
+              <h3>Leaderboard</h3>
+              <ol style={{ margin: 0, paddingLeft: "20px" }}>
+                {leaderboard.map((entry, index) => (
+                  <li key={`${entry.name}-${entry.timeTaken}-${index}`}>
+                    {entry.name} - {entry.timeTaken}s
+                  </li>
+                ))}
+              </ol>
+            </section>
+          ) : null}
         </section>
       ) : null}
 
