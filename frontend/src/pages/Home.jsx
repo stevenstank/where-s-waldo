@@ -1,12 +1,18 @@
 import { useEffect, useRef, useState } from "react";
 import gameImage from "../assets/game-image.svg";
-import { startGame, validateClick } from "../services/api";
+import { finishGame, startGame, validateClick } from "../services/api";
+
+const ALL_CHARACTERS = ["Waldo", "Wizard", "Wilma"];
 
 function Home() {
   const [gameId, setGameId] = useState(null);
+  const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const [targetBox, setTargetBox] = useState(null);
   const [selectedCharacter, setSelectedCharacter] = useState("");
   const [markers, setMarkers] = useState([]);
+  const [foundCharacters, setFoundCharacters] = useState([]);
+  const [completedTimeTaken, setCompletedTimeTaken] = useState(null);
+  const [isCompletingGame, setIsCompletingGame] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
   const imageAreaRef = useRef(null);
 
@@ -42,6 +48,13 @@ function Home() {
       return;
     }
 
+    if (foundCharacters.includes(characterName)) {
+      setErrorMessage(`${characterName} is already found.`);
+      setTargetBox(null);
+      setSelectedCharacter("");
+      return;
+    }
+
     try {
       const result = await validateClick({
         gameId,
@@ -52,6 +65,7 @@ function Home() {
 
       if (result.success) {
         setMarkers((prev) => [...prev, { ...targetBox, characterName }]);
+        setFoundCharacters((prev) => [...prev, characterName]);
         setErrorMessage("");
       } else {
         setErrorMessage("Not a match. Try another spot.");
@@ -63,6 +77,26 @@ function Home() {
       setSelectedCharacter("");
     }
   };
+
+  useEffect(() => {
+    const finishCurrentGame = async () => {
+      if (!gameId || foundCharacters.length !== ALL_CHARACTERS.length || isCompletingGame) {
+        return;
+      }
+
+      setIsCompletingGame(true);
+      try {
+        const result = await finishGame(gameId);
+        setCompletedTimeTaken(result.timeTaken);
+      } catch (error) {
+        setErrorMessage(error.message || "Failed to finish game.");
+      } finally {
+        setIsCompletingGame(false);
+      }
+    };
+
+    finishCurrentGame();
+  }, [foundCharacters, gameId, isCompletingGame]);
 
   useEffect(() => {
     const initGame = async () => {
@@ -92,9 +126,45 @@ function Home() {
     };
   }, []);
 
+  useEffect(() => {
+    if (!gameId) {
+      return undefined;
+    }
+
+    const startedAt = Date.now();
+    const intervalId = setInterval(() => {
+      const seconds = Math.floor((Date.now() - startedAt) / 1000);
+      setElapsedSeconds(seconds);
+    }, 1000);
+
+    return () => {
+      clearInterval(intervalId);
+    };
+  }, [gameId]);
+
   return (
     <main style={{ padding: "24px" }}>
       <h1>Where is Waldo</h1>
+
+      {completedTimeTaken !== null ? (
+        <section
+          style={{
+            marginBottom: "16px",
+            padding: "16px",
+            border: "2px solid #147a35",
+            borderRadius: "8px",
+            background: "#e8f7ec",
+          }}
+        >
+          <h2 style={{ marginTop: 0 }}>Game Completed!</h2>
+          <p style={{ marginBottom: 0 }}>Final Time: {completedTimeTaken.toFixed(2)}s</p>
+        </section>
+      ) : null}
+
+      <p style={{ marginBottom: "12px" }}>Timer: {elapsedSeconds}s</p>
+      <p style={{ marginBottom: "12px" }}>
+        Found: {foundCharacters.join(", ") || "None"}
+      </p>
       <div
         ref={imageAreaRef}
         style={{
@@ -159,9 +229,15 @@ function Home() {
               <option value="" disabled>
                 Select character
               </option>
-              <option value="Waldo">Waldo</option>
-              <option value="Wizard">Wizard</option>
-              <option value="Wilma">Wilma</option>
+              {ALL_CHARACTERS.map((character) => (
+                <option
+                  key={character}
+                  value={character}
+                  disabled={foundCharacters.includes(character)}
+                >
+                  {character}
+                </option>
+              ))}
             </select>
           </div>
         ) : null}
