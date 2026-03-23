@@ -11,6 +11,9 @@ const prisma = require("./config/prisma");
 const app = express();
 
 app.use(express.json());
+app.get("/", (req, res) => {
+  res.send("API is running...");
+});
 app.use("/api", healthRoutes);
 app.use("/api", validationRoutes);
 app.use("/api", scoreRoutes);

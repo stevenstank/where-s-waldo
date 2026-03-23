@@ -1,40 +1,9 @@
 const prisma = require("../config/prisma");
 const ApiError = require("../utils/apiError");
-const jwt = require("jsonwebtoken");
 
 const startGame = async (req, res, next) => {
   try {
-    const authHeader = req.headers.authorization;
-    let userId = null;
-
-    if (authHeader) {
-      if (!process.env.JWT_SECRET) {
-        throw new ApiError(500, "JWT secret is not configured");
-      }
-
-      if (!authHeader.startsWith("Bearer ")) {
-        throw new ApiError(401, "invalid authorization header");
-      }
-
-      const token = authHeader.split(" ")[1];
-
-      if (!token) {
-        throw new ApiError(401, "missing token");
-      }
-
-      let payload;
-      try {
-        payload = jwt.verify(token, process.env.JWT_SECRET);
-      } catch (error) {
-        throw new ApiError(401, "invalid token");
-      }
-
-      userId = payload.userId;
-
-      if (!userId || typeof userId !== "string") {
-        throw new ApiError(401, "invalid token payload");
-      }
-    }
+    const userId = req.user?.userId || null;
 
     if (userId) {
       const user = await prisma.user.findUnique({ where: { id: userId } });
