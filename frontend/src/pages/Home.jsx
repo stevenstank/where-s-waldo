@@ -157,6 +157,16 @@ function Home() {
   }, [completedTimeTaken, hasSubmittedScore, isLoggedIn]);
 
   useEffect(() => {
+    const fetchInitialLeaderboard = async () => {
+      try {
+        await loadLeaderboard();
+      } catch (error) {
+        // Keep game usable even if leaderboard fetch fails.
+      }
+    };
+
+    fetchInitialLeaderboard();
+
     const initGame = async () => {
       try {
         const session = await startGame();
@@ -241,18 +251,6 @@ function Home() {
 
           {hasSubmittedScore ? <p>Score submitted successfully.</p> : null}
 
-          {leaderboard.length > 0 ? (
-            <section>
-              <h3>Leaderboard</h3>
-              <ol style={{ margin: 0, paddingLeft: "20px" }}>
-                {leaderboard.map((entry, index) => (
-                  <li key={`${entry.name}-${entry.timeTaken}-${index}`}>
-                    {entry.name} - {entry.timeTaken}s
-                  </li>
-                ))}
-              </ol>
-            </section>
-          ) : null}
         </section>
       ) : null}
 
@@ -341,6 +339,21 @@ function Home() {
       {errorMessage ? (
         <p style={{ color: "#b00020", marginTop: "12px" }}>{errorMessage}</p>
       ) : null}
+
+      <section style={{ marginTop: "20px" }}>
+        <h2 style={{ marginBottom: "8px" }}>Leaderboard</h2>
+        {leaderboard.length > 0 ? (
+          <ol style={{ margin: 0, paddingLeft: "20px" }}>
+            {leaderboard.map((entry, index) => (
+              <li key={`${entry.name}-${entry.timeTaken}-${index}`}>
+                {entry.name} - {entry.timeTaken}s
+              </li>
+            ))}
+          </ol>
+        ) : (
+          <p style={{ margin: 0 }}>No scores yet.</p>
+        )}
+      </section>
     </main>
   );
 }
