@@ -78,7 +78,34 @@ const login = async (req, res, next) => {
   }
 };
 
+const me = async (req, res, next) => {
+  try {
+    const userId = req.user?.userId;
+
+    if (!userId) {
+      throw new ApiError(401, "unauthorized");
+    }
+
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        id: true,
+        username: true,
+      },
+    });
+
+    if (!user) {
+      throw new ApiError(404, "user not found");
+    }
+
+    return res.status(200).json(user);
+  } catch (error) {
+    return next(error);
+  }
+};
+
 module.exports = {
   register,
   login,
+  me,
 };
