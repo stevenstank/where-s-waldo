@@ -35,8 +35,9 @@ model Character {
 
 model Score {
   id        String @id @default(uuid())
-  userId    String
-  user      User   @relation(fields: [userId], references: [id])
+  userId    String?
+  user      User?  @relation(fields: [userId], references: [id])
+  name      String?
   gameId    String
   game      Game   @relation(fields: [gameId], references: [id])
   timeTaken Float
