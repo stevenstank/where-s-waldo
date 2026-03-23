@@ -100,10 +100,7 @@ const finishGame = async (req, res, next) => {
 
     const timeTaken = (updatedGame.endTime.getTime() - updatedGame.startTime.getTime()) / 1000;
 
-    return res.status(200).json({
-      gameId: updatedGame.id,
-      timeTaken,
-    });
+    return res.status(200).json({ timeTaken });
   } catch (error) {
     return next(error);
   }
