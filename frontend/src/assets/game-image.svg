@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 700" role="img" aria-label="Where is Waldo game scene">
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#a7d8ff"/>
+      <stop offset="100%" stop-color="#eaf7ff"/>
+    </linearGradient>
+    <pattern id="crowd" width="40" height="40" patternUnits="userSpaceOnUse">
+      <circle cx="8" cy="10" r="5" fill="#f2c38b"/>
+      <rect x="3" y="16" width="10" height="13" rx="2" fill="#e23d3d"/>
+      <circle cx="28" cy="10" r="5" fill="#dba574"/>
+      <rect x="23" y="16" width="10" height="13" rx="2" fill="#357edd"/>
+      <circle cx="18" cy="30" r="5" fill="#efbd82"/>
+      <rect x="13" y="35" width="10" height="13" rx="2" fill="#1b9a59"/>
+    </pattern>
+  </defs>
+
+  <rect width="1200" height="700" fill="url(#sky)"/>
+  <rect y="300" width="1200" height="400" fill="#f6f2ea"/>
+  <rect y="320" width="1200" height="360" fill="url(#crowd)" opacity="0.9"/>
+
+  <rect x="890" y="430" width="28" height="64" rx="4" fill="#ffffff" stroke="#d22" stroke-width="8"/>
+  <circle cx="904" cy="415" r="13" fill="#f0c796"/>
+  <rect x="893" y="403" width="22" height="6" fill="#d22"/>
+
+  <text x="40" y="90" font-family="Verdana, sans-serif" font-size="48" fill="#123">
+    Where is Waldo?
+  </text>
+</svg>
