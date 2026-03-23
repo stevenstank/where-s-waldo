@@ -2,7 +2,6 @@ import { useEffect, useRef, useState } from "react";
 import gameImage from "../assets/game-image.svg";
 import {
   finishGame,
-  getLeaderboard,
   startGame,
   submitScore,
   validateClick,
@@ -10,10 +9,9 @@ import {
 
 const ALL_CHARACTERS = ["Waldo", "Wizard", "Wilma"];
 
-function Home() {
-  const storedToken =
-    localStorage.getItem("token") || localStorage.getItem("authToken") || "";
-  const isLoggedIn = Boolean(storedToken);
+function Home({ user, onRequireAuth }) {
+  const storedToken = localStorage.getItem("token") || "";
+  const isLoggedIn = Boolean(user);
 
   const [gameId, setGameId] = useState(null);
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
@@ -23,48 +21,10 @@ function Home() {
   const [foundCharacters, setFoundCharacters] = useState([]);
   const [completedTimeTaken, setCompletedTimeTaken] = useState(null);
   const [isCompletingGame, setIsCompletingGame] = useState(false);
-  const [guestName, setGuestName] = useState("");
   const [isSubmittingScore, setIsSubmittingScore] = useState(false);
   const [hasSubmittedScore, setHasSubmittedScore] = useState(false);
-  const [leaderboard, setLeaderboard] = useState([]);
   const [errorMessage, setErrorMessage] = useState("");
   const imageAreaRef = useRef(null);
-
-  const loadLeaderboard = async () => {
-    const scores = await getLeaderboard();
-    setLeaderboard(scores);
-  };
-
-  const handleSubmitScore = async (overrideName) => {
-    if (!gameId || completedTimeTaken === null || isSubmittingScore || hasSubmittedScore) {
-      return;
-    }
-
-    const submissionName = overrideName || guestName.trim();
-
-    if (!isLoggedIn && !submissionName) {
-      setErrorMessage("Please enter your name to submit score.");
-      return;
-    }
-
-    setIsSubmittingScore(true);
-    setErrorMessage("");
-
-    try {
-      await submitScore({
-        gameId,
-        timeTaken: completedTimeTaken,
-        name: isLoggedIn ? undefined : submissionName,
-        token: storedToken || undefined,
-      });
-      setHasSubmittedScore(true);
-      await loadLeaderboard();
-    } catch (error) {
-      setErrorMessage(error.message || "Failed to submit score.");
-    } finally {
-      setIsSubmittingScore(false);
-    }
-  };
 
   const handleImageClick = (event) => {
     if (!gameId) {
@@ -149,17 +109,15 @@ function Home() {
   }, [foundCharacters, gameId, isCompletingGame]);
 
   useEffect(() => {
-    if (
-      completedTimeTaken === null ||
-      !isLoggedIn ||
-      hasSubmittedScore ||
-      isSubmittingScore ||
-      !gameId
-    ) {
+    if (!isLoggedIn || completedTimeTaken === null || hasSubmittedScore) {
       return;
     }
 
     const submitLoggedInScore = async () => {
+      if (!gameId || isSubmittingScore) {
+        return;
+      }
+
       setIsSubmittingScore(true);
       setErrorMessage("");
 
@@ -170,7 +128,6 @@ function Home() {
           token: storedToken || undefined,
         });
         setHasSubmittedScore(true);
-        await loadLeaderboard();
       } catch (error) {
         setErrorMessage(error.message || "Failed to submit score.");
       } finally {
@@ -182,16 +139,6 @@ function Home() {
   }, [completedTimeTaken, gameId, hasSubmittedScore, isLoggedIn, isSubmittingScore, storedToken]);
 
   useEffect(() => {
-    const fetchInitialLeaderboard = async () => {
-      try {
-        await loadLeaderboard();
-      } catch {
-        // Keep game usable even if leaderboard fetch fails.
-      }
-    };
-
-    fetchInitialLeaderboard();
-
     const initGame = async () => {
       try {
         const session = await startGame();
@@ -252,27 +199,16 @@ function Home() {
           <h2 style={{ marginTop: 0 }}>Game Completed!</h2>
           <p>Final Time: {completedTimeTaken.toFixed(2)}s</p>
 
-          {!isLoggedIn && !hasSubmittedScore ? (
-            <div style={{ display: "flex", gap: "8px", alignItems: "center", flexWrap: "wrap" }}>
-              <input
-                type="text"
-                placeholder="Enter your name"
-                value={guestName}
-                onChange={(event) => setGuestName(event.target.value)}
-              />
-              <button
-                type="button"
-                onClick={() => handleSubmitScore()}
-                disabled={isSubmittingScore}
-              >
-                {isSubmittingScore ? "Submitting..." : "Submit Score"}
+          {!isLoggedIn ? (
+            <div style={{ display: "flex", gap: "10px", alignItems: "center", flexWrap: "wrap" }}>
+              <p style={{ margin: 0 }}>You played in guest mode. Log in to save your score.</p>
+              <button type="button" onClick={onRequireAuth}>
+                Login to Save
               </button>
             </div>
           ) : null}
 
-          {isLoggedIn && !hasSubmittedScore ? (
-            <p>{isSubmittingScore ? "Submitting score..." : "Submitting score automatically..."}</p>
-          ) : null}
+          {isLoggedIn && !hasSubmittedScore ? <p>Submitting score...</p> : null}
 
           {hasSubmittedScore ? <p>Score submitted successfully.</p> : null}
 
@@ -364,21 +300,6 @@ function Home() {
       {errorMessage ? (
         <p style={{ color: "#b00020", marginTop: "12px" }}>{errorMessage}</p>
       ) : null}
-
-      <section style={{ marginTop: "20px" }}>
-        <h2 style={{ marginBottom: "8px" }}>Leaderboard</h2>
-        {leaderboard.length > 0 ? (
-          <ol style={{ margin: 0, paddingLeft: "20px" }}>
-            {leaderboard.map((entry, index) => (
-              <li key={`${entry.name}-${entry.timeTaken}-${index}`}>
-                {entry.name} - {entry.timeTaken}s
-              </li>
-            ))}
-          </ol>
-        ) : (
-          <p style={{ margin: 0 }}>No scores yet.</p>
-        )}
-      </section>
     </main>
   );
 }

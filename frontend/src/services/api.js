@@ -1,10 +1,26 @@
 const BASE_URL = (import.meta.env.VITE_API_URL || "").replace(/\/+$/, "");
 console.log("API URL:", BASE_URL);
+const TOKEN_KEY = "token";
+
+const getStoredToken = () => localStorage.getItem(TOKEN_KEY) || "";
+
+export const setAuthToken = (token) => {
+  if (token) {
+    localStorage.setItem(TOKEN_KEY, token);
+  } else {
+    localStorage.removeItem(TOKEN_KEY);
+  }
+};
+
+export const getAuthToken = () => getStoredToken();
 
 const request = async (url, options = {}) => {
+  const token = getStoredToken();
+
   const response = await fetch(url, {
     headers: {
       "Content-Type": "application/json",
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
       ...(options.headers || {}),
     },
     ...options,
@@ -36,7 +52,7 @@ const withToken = (token) =>
 export const startGame = async (token) =>
   request(`${BASE_URL}/api/game/start`, {
     method: "POST",
-    headers: withToken(token),
+    headers: token ? withToken(token) : undefined,
     body: JSON.stringify({}),
   });
 
@@ -55,7 +71,7 @@ export const finishGame = async (gameId) =>
 export const submitScore = async ({ gameId, timeTaken, name, token }) =>
   request(`${BASE_URL}/api/score`, {
     method: "POST",
-    headers: withToken(token),
+    headers: token ? withToken(token) : undefined,
     body: JSON.stringify({ gameId, timeTaken, name }),
   });
 
@@ -70,6 +86,8 @@ export const register = async ({ username, password }) =>
     method: "POST",
     body: JSON.stringify({ username, password }),
   });
+
+export const getCurrentUser = async () => request(`${BASE_URL}/api/auth/me`);
 
 export const getLeaderboard = async () => request(`${BASE_URL}/api/leaderboard`);
 
