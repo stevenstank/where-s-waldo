@@ -1,15 +1,20 @@
 const prisma = require("../config/prisma");
+const ApiError = require("../utils/apiError");
 
-const validateCharacter = async (req, res) => {
+const validateCharacter = async (req, res, next) => {
   try {
     const { gameId, characterName, x, y } = req.body;
 
     if (!gameId || !characterName || typeof x !== "number" || typeof y !== "number") {
-      return res.status(400).json({ message: "gameId, characterName, x, and y are required" });
+      throw new ApiError(400, "gameId, characterName, x, and y are required");
     }
 
     if (!Number.isFinite(x) || !Number.isFinite(y)) {
-      return res.status(400).json({ message: "x and y must be valid numbers" });
+      throw new ApiError(400, "x and y must be valid numbers");
+    }
+
+    if (x < 0 || x > 100 || y < 0 || y > 100) {
+      throw new ApiError(400, "x and y must be between 0 and 100");
     }
 
     const game = await prisma.game.findUnique({
@@ -18,7 +23,7 @@ const validateCharacter = async (req, res) => {
     });
 
     if (!game) {
-      return res.status(404).json({ message: "game not found" });
+      throw new ApiError(404, "game not found");
     }
 
     const character = await prisma.character.findUnique({
@@ -40,7 +45,7 @@ const validateCharacter = async (req, res) => {
 
     return res.status(200).json({ success });
   } catch (error) {
-    return res.status(500).json({ message: "failed to validate character" });
+    return next(error);
   }
 };
 

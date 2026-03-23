@@ -1,13 +1,18 @@
 const prisma = require("../config/prisma");
+const ApiError = require("../utils/apiError");
 
-const startGame = async (req, res) => {
+const startGame = async (req, res, next) => {
   try {
     const { userId } = req.body;
+
+    if (userId && typeof userId !== "string") {
+      throw new ApiError(400, "userId must be a string");
+    }
 
     if (userId) {
       const user = await prisma.user.findUnique({ where: { id: userId } });
       if (!user) {
-        return res.status(404).json({ message: "user not found" });
+        throw new ApiError(404, "user not found");
       }
     }
 
@@ -26,16 +31,16 @@ const startGame = async (req, res) => {
 
     return res.status(201).json(game);
   } catch (error) {
-    return res.status(500).json({ message: "failed to start game" });
+    return next(error);
   }
 };
 
-const finishGame = async (req, res) => {
+const finishGame = async (req, res, next) => {
   try {
     const { gameId } = req.body;
 
-    if (!gameId) {
-      return res.status(400).json({ message: "gameId is required" });
+    if (!gameId || typeof gameId !== "string") {
+      throw new ApiError(400, "gameId is required");
     }
 
     const game = await prisma.game.findUnique({
@@ -49,11 +54,11 @@ const finishGame = async (req, res) => {
     });
 
     if (!game) {
-      return res.status(404).json({ message: "game not found" });
+      throw new ApiError(404, "game not found");
     }
 
     if (game.completed) {
-      return res.status(400).json({ message: "game already completed" });
+      throw new ApiError(400, "game already completed");
     }
 
     const endTime = new Date();
@@ -79,7 +84,7 @@ const finishGame = async (req, res) => {
       timeTaken,
     });
   } catch (error) {
-    return res.status(500).json({ message: "failed to finish game" });
+    return next(error);
   }
 };
 

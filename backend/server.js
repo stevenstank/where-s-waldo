@@ -5,7 +5,7 @@ const authRoutes = require("./routes/authRoutes");
 const gameRoutes = require("./routes/gameRoutes");
 const validationRoutes = require("./routes/validationRoutes");
 const scoreRoutes = require("./routes/scoreRoutes");
-const { notFoundHandler } = require("./middleware/errorHandler");
+const { notFoundHandler, errorHandler } = require("./middleware/errorHandler");
 const prisma = require("./config/prisma");
 
 const app = express();
@@ -17,6 +17,7 @@ app.use("/api", scoreRoutes);
 app.use("/api/auth", authRoutes);
 app.use("/api/game", gameRoutes);
 app.use(notFoundHandler);
+app.use(errorHandler);
 
 const startServer = async () => {
   try {

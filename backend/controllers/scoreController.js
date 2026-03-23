@@ -1,24 +1,34 @@
 const prisma = require("../config/prisma");
+const ApiError = require("../utils/apiError");
 
-const createScore = async (req, res) => {
+const createScore = async (req, res, next) => {
   try {
     const { userId, gameId, timeTaken } = req.body;
 
     if (!userId || !gameId || typeof timeTaken !== "number" || !Number.isFinite(timeTaken)) {
-      return res.status(400).json({ message: "userId, gameId, and numeric timeTaken are required" });
+      throw new ApiError(400, "userId, gameId, and numeric timeTaken are required");
     }
 
-    const [user, game] = await Promise.all([
+    if (timeTaken < 0) {
+      throw new ApiError(400, "timeTaken must be a non-negative number");
+    }
+
+    const [user, game, existingScore] = await Promise.all([
       prisma.user.findUnique({ where: { id: userId }, select: { id: true } }),
       prisma.game.findUnique({ where: { id: gameId }, select: { id: true } }),
+      prisma.score.findFirst({ where: { gameId } }),
     ]);
 
     if (!user) {
-      return res.status(404).json({ message: "user not found" });
+      throw new ApiError(404, "user not found");
     }
 
     if (!game) {
-      return res.status(404).json({ message: "game not found" });
+      throw new ApiError(404, "game not found");
+    }
+
+    if (existingScore) {
+      throw new ApiError(409, "score for this game has already been submitted");
     }
 
     const score = await prisma.score.create({
@@ -37,11 +47,11 @@ const createScore = async (req, res) => {
 
     return res.status(201).json(score);
   } catch (error) {
-    return res.status(500).json({ message: "failed to save score" });
+    return next(error);
   }
 };
 
-const getLeaderboard = async (req, res) => {
+const getLeaderboard = async (req, res, next) => {
   try {
     const leaderboard = await prisma.score.findMany({
       orderBy: {
@@ -67,7 +77,7 @@ const getLeaderboard = async (req, res) => {
 
     return res.status(200).json(formatted);
   } catch (error) {
-    return res.status(500).json({ message: "failed to fetch leaderboard" });
+    return next(error);
   }
 };
 
