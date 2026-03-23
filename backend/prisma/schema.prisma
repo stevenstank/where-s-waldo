@@ -6,3 +6,38 @@ datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
 }
+
+model User {
+  id       String  @id @default(uuid())
+  username String  @unique
+  password String
+  games    Game[]
+  scores   Score[]
+}
+
+model Game {
+  id        String   @id @default(uuid())
+  userId    String?
+  user      User?    @relation(fields: [userId], references: [id])
+  startTime DateTime
+  endTime   DateTime?
+  completed Boolean  @default(false)
+  scores    Score[]
+}
+
+model Character {
+  id        String @id @default(uuid())
+  name      String @unique
+  x         Float
+  y         Float
+  tolerance Float
+}
+
+model Score {
+  id        String @id @default(uuid())
+  userId    String
+  user      User   @relation(fields: [userId], references: [id])
+  gameId    String
+  game      Game   @relation(fields: [gameId], references: [id])
+  timeTaken Float
+}
