@@ -1,7 +1,8 @@
-const BASE_URL = import.meta.env.VITE_API_URL;
+const BASE_URL = (import.meta.env.VITE_API_URL || "").replace(/\/+$/, "");
+console.log("API URL:", BASE_URL);
 
-const request = async (path, options = {}) => {
-  const response = await fetch(`${BASE_URL}${path}`, {
+const request = async (url, options = {}) => {
+  const response = await fetch(url, {
     headers: {
       "Content-Type": "application/json",
       ...(options.headers || {}),
@@ -33,43 +34,43 @@ const withToken = (token) =>
     : {};
 
 export const startGame = async (token) =>
-  request("/api/game/start", {
+  request(`${BASE_URL}/api/game/start`, {
     method: "POST",
     headers: withToken(token),
     body: JSON.stringify({}),
   });
 
 export const validateClick = async ({ gameId, characterName, x, y }) =>
-  request("/api/validate", {
+  request(`${BASE_URL}/api/validate`, {
     method: "POST",
     body: JSON.stringify({ gameId, characterName, x, y }),
   });
 
 export const finishGame = async (gameId) =>
-  request("/api/game/finish", {
+  request(`${BASE_URL}/api/game/finish`, {
     method: "POST",
     body: JSON.stringify({ gameId }),
   });
 
 export const submitScore = async ({ gameId, timeTaken, name, token }) =>
-  request("/api/score", {
+  request(`${BASE_URL}/api/score`, {
     method: "POST",
     headers: withToken(token),
     body: JSON.stringify({ gameId, timeTaken, name }),
   });
 
 export const login = async ({ username, password }) =>
-  request("/api/auth/login", {
+  request(`${BASE_URL}/api/auth/login`, {
     method: "POST",
     body: JSON.stringify({ username, password }),
   });
 
 export const register = async ({ username, password }) =>
-  request("/api/auth/register", {
+  request(`${BASE_URL}/api/auth/register`, {
     method: "POST",
     body: JSON.stringify({ username, password }),
   });
 
-export const getLeaderboard = async () => request("/api/leaderboard");
+export const getLeaderboard = async () => request(`${BASE_URL}/api/leaderboard`);
 
 export { BASE_URL };
