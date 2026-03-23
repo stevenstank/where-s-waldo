@@ -30,7 +30,7 @@ function Leaderboard() {
             <thead>
               <tr>
                 <th>Rank</th>
-                <th>Player</th>
+                <th>Username</th>
                 <th>Type</th>
                 <th>Time</th>
               </tr>

@@ -69,11 +69,11 @@ export const finishGame = async (gameId) =>
     body: JSON.stringify({ gameId }),
   });
 
-export const submitScore = async ({ gameId, timeTaken, name, token }) =>
+export const submitScore = async ({ gameId, timeTaken, token }) =>
   request(`${BASE_URL}/api/score`, {
     method: "POST",
     headers: token ? withToken(token) : undefined,
-    body: JSON.stringify({ gameId, timeTaken, name }),
+    body: JSON.stringify({ gameId, timeTaken }),
   });
 
 export const login = async ({ username, password }) =>

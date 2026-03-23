@@ -150,6 +150,29 @@
 .mini-leaderboard__meta {
   color: var(--text-muted);
   font-size: 0.9rem;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.mini-type-pill {
+  display: inline-block;
+  border-radius: 999px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  padding: 2px 8px;
+}
+
+.mini-type-pill-guest {
+  background: rgba(255, 93, 122, 0.17);
+  color: #ff95a9;
+  border: 1px solid rgba(255, 93, 122, 0.35);
+}
+
+.mini-type-pill-auth {
+  background: rgba(65, 212, 168, 0.16);
+  color: #8ef5d8;
+  border: 1px solid rgba(65, 212, 168, 0.35);
 }
 
 .error-text {

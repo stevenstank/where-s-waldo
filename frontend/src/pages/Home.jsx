@@ -353,7 +353,10 @@ function Home({ user, onRequireAuth }) {
                   <span className={`rank rank-${Math.min(index + 1, 3)}`}>#{index + 1}</span>
                   <span className="mini-leaderboard__name">{entry.name}</span>
                   <span className="mini-leaderboard__meta">
-                    {entry.isGuest ? "Guest" : "Account"} · {entry.timeTaken.toFixed(2)}s
+                    <span className={`mini-type-pill ${entry.isGuest ? "mini-type-pill-guest" : "mini-type-pill-auth"}`}>
+                      {entry.isGuest ? "Guest" : "Registered"}
+                    </span>
+                    <span>{entry.timeTaken.toFixed(2)}s</span>
                   </span>
                 </li>
               ))}

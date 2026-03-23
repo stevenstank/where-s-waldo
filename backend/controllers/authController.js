@@ -2,6 +2,7 @@ const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 const prisma = require("../config/prisma");
 const ApiError = require("../utils/apiError");
+const { normalizeUsername, validateUsername } = require("../utils/identity");
 
 const register = async (req, res, next) => {
   try {
@@ -11,12 +12,22 @@ const register = async (req, res, next) => {
       throw new ApiError(400, "username and password are required");
     }
 
-    if (username.trim().length < 3 || password.length < 6) {
-      throw new ApiError(400, "username must be at least 3 chars and password at least 6 chars");
+    const usernameError = validateUsername(username);
+    if (usernameError) {
+      throw new ApiError(400, usernameError);
     }
 
-    const existingUser = await prisma.user.findUnique({
-      where: { username: username.trim() },
+    if (password.length < 6) {
+      throw new ApiError(400, "password must be at least 6 characters");
+    }
+
+    const cleanedUsername = username.trim();
+    const usernameNormalized = normalizeUsername(cleanedUsername);
+
+    const existingUser = await prisma.user.findFirst({
+      where: {
+        OR: [{ usernameNormalized }, { username: cleanedUsername }],
+      },
     });
 
     if (existingUser) {
@@ -27,7 +38,8 @@ const register = async (req, res, next) => {
 
     const user = await prisma.user.create({
       data: {
-        username: username.trim(),
+        username: cleanedUsername,
+        usernameNormalized,
         password: hashedPassword,
       },
       select: {
@@ -54,8 +66,13 @@ const login = async (req, res, next) => {
       throw new ApiError(500, "JWT secret is not configured");
     }
 
-    const user = await prisma.user.findUnique({
-      where: { username: username.trim() },
+    const cleanedUsername = username.trim();
+    const usernameNormalized = normalizeUsername(cleanedUsername);
+
+    const user = await prisma.user.findFirst({
+      where: {
+        OR: [{ usernameNormalized }, { username: cleanedUsername }],
+      },
     });
 
     if (!user) {
@@ -68,7 +85,7 @@ const login = async (req, res, next) => {
       throw new ApiError(401, "invalid credentials");
     }
 
-    const token = jwt.sign({ userId: user.id }, process.env.JWT_SECRET, {
+    const token = jwt.sign({ userId: user.id, username: user.username }, process.env.JWT_SECRET, {
       expiresIn: "1h",
     });
 

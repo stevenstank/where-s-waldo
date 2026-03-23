@@ -8,11 +8,12 @@ datasource db {
 }
 
 model User {
-  id       String  @id @default(uuid())
-  username String  @unique
-  password String
-  games    Game[]
-  scores   Score[]
+  id                 String  @id @default(uuid())
+  username           String  @unique
+  usernameNormalized String? @unique
+  password           String
+  games              Game[]
+  scores             Score[]
 }
 
 model Game {

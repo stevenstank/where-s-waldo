@@ -15,7 +15,15 @@ const authenticateToken = (req, res, next) => {
 
   try {
     const payload = jwt.verify(token, process.env.JWT_SECRET);
-    req.user = { userId: payload.userId };
+
+    if (!payload || typeof payload.userId !== "string" || payload.userId.length === 0) {
+      return res.status(403).json({ message: "invalid token payload" });
+    }
+
+    req.user = {
+      userId: payload.userId,
+      username: typeof payload.username === "string" ? payload.username : undefined,
+    };
     return next();
   } catch (error) {
     if (error.name === "TokenExpiredError") {

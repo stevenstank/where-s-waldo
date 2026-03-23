@@ -1,9 +1,10 @@
 const prisma = require("../config/prisma");
 const ApiError = require("../utils/apiError");
+const { createGuestName } = require("../utils/identity");
 
 const createScore = async (req, res, next) => {
   try {
-    const { gameId, timeTaken, name } = req.body;
+    const { gameId, timeTaken } = req.body;
     const userId = req.user?.userId || null;
     let displayName = null;
 
@@ -16,11 +17,7 @@ const createScore = async (req, res, next) => {
     }
 
     if (!userId) {
-      if (!name || typeof name !== "string" || name.trim().length === 0) {
-        throw new ApiError(400, "name is required for guest score submission");
-      }
-
-      displayName = name.trim();
+      displayName = createGuestName(gameId);
     }
 
     const [user, game, existingScore] = await Promise.all([
@@ -54,7 +51,7 @@ const createScore = async (req, res, next) => {
     const score = await prisma.score.create({
       data: {
         userId,
-        name: displayName,
+        name: userId ? null : displayName,
         gameId,
         timeTaken,
       },
