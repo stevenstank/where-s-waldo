@@ -1,6 +1,6 @@
 const express = require("express");
 const cors = require("cors");
-const { PORT } = require("./config/env");
+const { PORT, DATABASE_URL, JWT_SECRET } = require("./config/env");
 const healthRoutes = require("./routes/healthRoutes");
 const authRoutes = require("./routes/authRoutes");
 const gameRoutes = require("./routes/gameRoutes");
@@ -10,11 +10,12 @@ const { notFoundHandler, errorHandler } = require("./middleware/errorHandler");
 const prisma = require("./config/prisma");
 
 const app = express();
+const HOST = "0.0.0.0";
 
 app.use(cors());
 app.use(express.json());
 app.get("/", (req, res) => {
-  res.send("API is running...");
+  res.json({ status: "ok", message: "API is running" });
 });
 app.use("/api", healthRoutes);
 app.use("/api", validationRoutes);
@@ -26,11 +27,19 @@ app.use(errorHandler);
 
 const startServer = async () => {
   try {
+    if (!DATABASE_URL) {
+      throw new Error("DATABASE_URL is not configured");
+    }
+
+    if (!JWT_SECRET) {
+      throw new Error("JWT_SECRET is not configured");
+    }
+
     await prisma.$queryRaw`SELECT 1`;
     console.log("Database connection successful");
 
-    app.listen(PORT, () => {
-      console.log(`Server running on port ${PORT}`);
+    app.listen(PORT, HOST, () => {
+      console.log(`Server running on http://${HOST}:${PORT}`);
     });
   } catch (error) {
     console.error("Database connection failed", error);

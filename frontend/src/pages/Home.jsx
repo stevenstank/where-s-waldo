@@ -149,18 +149,43 @@ function Home() {
   }, [foundCharacters, gameId, isCompletingGame]);
 
   useEffect(() => {
-    if (completedTimeTaken === null || !isLoggedIn || hasSubmittedScore) {
+    if (
+      completedTimeTaken === null ||
+      !isLoggedIn ||
+      hasSubmittedScore ||
+      isSubmittingScore ||
+      !gameId
+    ) {
       return;
     }
 
-    handleSubmitScore();
-  }, [completedTimeTaken, hasSubmittedScore, isLoggedIn]);
+    const submitLoggedInScore = async () => {
+      setIsSubmittingScore(true);
+      setErrorMessage("");
+
+      try {
+        await submitScore({
+          gameId,
+          timeTaken: completedTimeTaken,
+          token: storedToken || undefined,
+        });
+        setHasSubmittedScore(true);
+        await loadLeaderboard();
+      } catch (error) {
+        setErrorMessage(error.message || "Failed to submit score.");
+      } finally {
+        setIsSubmittingScore(false);
+      }
+    };
+
+    submitLoggedInScore();
+  }, [completedTimeTaken, gameId, hasSubmittedScore, isLoggedIn, isSubmittingScore, storedToken]);
 
   useEffect(() => {
     const fetchInitialLeaderboard = async () => {
       try {
         await loadLeaderboard();
-      } catch (error) {
+      } catch {
         // Keep game usable even if leaderboard fetch fails.
       }
     };
@@ -171,7 +196,7 @@ function Home() {
       try {
         const session = await startGame();
         setGameId(session.gameId);
-      } catch (error) {
+      } catch {
         setErrorMessage("Failed to start game session.");
       }
     };
