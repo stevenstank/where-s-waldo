@@ -22,10 +22,27 @@ const app = express();
 const HOST = "0.0.0.0";
 
 const corsOrigins = CLIENT_ORIGIN.split(",").map((origin) => origin.trim()).filter(Boolean);
+const escapeRegex = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+const corsMatchers = corsOrigins.map((origin) => {
+  if (origin.includes("*")) {
+    const expression = `^${escapeRegex(origin).replace(/\\\*/g, ".*")}$`;
+    return new RegExp(expression);
+  }
+
+  return origin;
+});
+
+const isAllowedOrigin = (origin) => corsMatchers.some((matcher) => {
+  if (typeof matcher === "string") {
+    return matcher === origin;
+  }
+
+  return matcher.test(origin);
+});
 
 app.use(cors({
   origin: (origin, callback) => {
-    if (!origin || corsOrigins.includes(origin)) {
+    if (!origin || isAllowedOrigin(origin)) {
       callback(null, true);
       return;
     }
