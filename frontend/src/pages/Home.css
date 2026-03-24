@@ -124,6 +124,31 @@
   display: block;
 }
 
+.generated-scene {
+  position: absolute;
+  inset: 0;
+}
+
+.scene-shape {
+  position: absolute;
+}
+
+.scene-shape--circle {
+  border-radius: 50%;
+}
+
+.scene-shape--square {
+  border-radius: 0;
+}
+
+.scene-shape--triangle {
+  clip-path: polygon(50% 0, 0 100%, 100% 100%);
+}
+
+.scene-shape--block {
+  border-radius: 2px;
+}
+
 .scene-loading {
   position: absolute;
   left: 12px;

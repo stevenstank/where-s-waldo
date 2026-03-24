@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import "./Home.css";
 import {
   getLeaderboard,
@@ -8,16 +8,20 @@ import {
 } from "../services/api";
 
 function Home({ user, onRequireAuth }) {
+  const SCENE_WIDTH = 1600;
+  const SCENE_HEIGHT = 900;
+
   const isLoggedIn = Boolean(user);
 
   const [gameId, setGameId] = useState(null);
   const [gameState, setGameState] = useState("idle");
   const [currentLevel, setCurrentLevel] = useState(null);
+  const [sceneObjects, setSceneObjects] = useState([]);
   const [foundTargets, setFoundTargets] = useState([]);
   const [selectedTarget, setSelectedTarget] = useState("");
-  const [isSceneLoading, setIsSceneLoading] = useState(false);
   const [isLoadingLeaderboard, setIsLoadingLeaderboard] = useState(false);
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
+  const [gameStartedAt, setGameStartedAt] = useState(null);
   const [resultPulse, setResultPulse] = useState(null);
   const [isValidatingClick, setIsValidatingClick] = useState(false);
   const [completedTimeTaken, setCompletedTimeTaken] = useState(null);
@@ -28,8 +32,6 @@ function Home({ user, onRequireAuth }) {
   const [leaderboardError, setLeaderboardError] = useState("");
   const [scoreShareUrl, setScoreShareUrl] = useState("");
   const [didCopyShareUrl, setDidCopyShareUrl] = useState(false);
-
-  const imageRef = useRef(null);
 
   const playTone = useCallback((frequency, duration) => {
     if (typeof window === "undefined") {
@@ -68,41 +70,51 @@ function Home({ user, onRequireAuth }) {
     return currentLevel.targets.filter((targetName) => !foundTargets.includes(targetName));
   }, [currentLevel, foundTargets]);
 
-  const getImageRelativePoint = useCallback((event) => {
-    const imageElement = imageRef.current;
+  const buildSceneObjects = useCallback(() => {
+    const count = Math.floor(Math.random() * 220) + 220;
+    const shapes = ["circle", "square", "triangle", "block"];
+    const generated = [];
 
-    if (!imageElement || !currentLevel) {
+    for (let index = 0; index < count; index += 1) {
+      const size = Math.floor(Math.random() * 31) + 10;
+      const x = Math.floor(Math.random() * (SCENE_WIDTH - size));
+      const y = Math.floor(Math.random() * (SCENE_HEIGHT - size));
+      const red = Math.floor(Math.random() * 200) + 30;
+      const green = Math.floor(Math.random() * 200) + 30;
+      const blue = Math.floor(Math.random() * 200) + 30;
+
+      generated.push({
+        id: `shape-${index}-${Date.now()}-${Math.random()}`,
+        shape: shapes[Math.floor(Math.random() * shapes.length)],
+        size,
+        x,
+        y,
+        color: `rgb(${red}, ${green}, ${blue})`,
+      });
+    }
+
+    return generated;
+  }, [SCENE_HEIGHT, SCENE_WIDTH]);
+
+  const getSceneRelativePoint = useCallback((event) => {
+    if (!currentLevel) {
       return null;
     }
 
-    const rect = imageElement.getBoundingClientRect();
-    const naturalWidth = currentLevel.image.width;
-    const naturalHeight = currentLevel.image.height;
+    const rect = event.currentTarget.getBoundingClientRect();
 
-    if (!naturalWidth || !naturalHeight || rect.width === 0 || rect.height === 0) {
+    if (rect.width === 0 || rect.height === 0) {
       return null;
     }
-
-    const containScale = Math.min(rect.width / naturalWidth, rect.height / naturalHeight);
-    const renderedWidth = naturalWidth * containScale;
-    const renderedHeight = naturalHeight * containScale;
-    const offsetX = (rect.width - renderedWidth) / 2;
-    const offsetY = (rect.height - renderedHeight) / 2;
 
     const localX = event.clientX - rect.left;
     const localY = event.clientY - rect.top;
 
-    if (
-      localX < offsetX
-      || localX > offsetX + renderedWidth
-      || localY < offsetY
-      || localY > offsetY + renderedHeight
-    ) {
-      return null;
-    }
+    const coordWidth = currentLevel?.image?.width || SCENE_WIDTH;
+    const coordHeight = currentLevel?.image?.height || SCENE_HEIGHT;
 
-    const imageX = Math.round((localX - offsetX) * (naturalWidth / renderedWidth));
-    const imageY = Math.round((localY - offsetY) * (naturalHeight / renderedHeight));
+    const imageX = Math.round((localX / rect.width) * coordWidth);
+    const imageY = Math.round((localY / rect.height) * coordHeight);
 
     return {
       imageX,
@@ -110,15 +122,16 @@ function Home({ user, onRequireAuth }) {
       pulseXPercent: (localX / rect.width) * 100,
       pulseYPercent: (localY / rect.height) * 100,
     };
-  }, [currentLevel]);
+  }, [SCENE_HEIGHT, SCENE_WIDTH, currentLevel]);
 
   const clearRuntimeState = () => {
     setElapsedSeconds(0);
+    setGameStartedAt(null);
     setGameId(null);
     setCurrentLevel(null);
+    setSceneObjects([]);
     setFoundTargets([]);
     setSelectedTarget("");
-    setIsSceneLoading(false);
     setResultPulse(null);
     setCompletedTimeTaken(null);
     setIsSubmittingScore(false);
@@ -141,35 +154,43 @@ function Home({ user, onRequireAuth }) {
     }
   }, []);
 
-  const startNewGame = useCallback(async () => {
+  const startNewGame = useCallback(() => {
     clearRuntimeState();
-    setGameState("loading");
+    const generatedScene = buildSceneObjects();
+    setSceneObjects(generatedScene);
+    setCurrentLevel({
+      id: "local-generated",
+      slug: "generated-scene",
+      name: "Generated Scene",
+      orderIndex: 1,
+      targets: ["Waldo"],
+      foundTargets: [],
+    });
+    setSelectedTarget("Waldo");
+    setGameStartedAt(Date.now());
+    setGameState("playing");
 
-    try {
-      const session = await startGame();
-      setGameId(session.gameId);
-      setCurrentLevel(session.currentLevel || null);
-      setFoundTargets(session.currentLevel?.foundTargets || []);
-      setSelectedTarget(session.currentLevel?.targets?.[0] || "");
-      setIsSceneLoading(true);
-      setGameState("playing");
-    } catch (error) {
-      console.error("Failed to start game:", error);
-      setErrorMessage("Failed to start game. Try again.");
-      setGameState("error");
-    } finally {
-      // Guardrail so the UI never gets stuck in loading.
-      setGameState((previousState) => (previousState === "loading" ? "error" : previousState));
-    }
-  }, []);
+    (async () => {
+      try {
+        const session = await startGame();
+        setGameId(session.gameId);
+        setCurrentLevel(session.currentLevel || null);
+        setFoundTargets(session.currentLevel?.foundTargets || []);
+        setSelectedTarget(session.currentLevel?.targets?.[0] || "");
+      } catch (error) {
+        console.error("Failed to start game:", error);
+        setErrorMessage("Failed to start game. Try again.");
+        setGameState("error");
+      }
+    })();
+  }, [buildSceneObjects]);
 
-  const handleImageClick = useCallback(async (event) => {
+  const handleSceneClick = useCallback(async (event) => {
     if (gameState !== "playing") {
       return;
     }
 
     if (!gameId || !currentLevel) {
-      setErrorMessage("Game session is not ready. Please wait...");
       return;
     }
 
@@ -177,7 +198,7 @@ function Home({ user, onRequireAuth }) {
       return;
     }
 
-    const point = getImageRelativePoint(event);
+    const point = getSceneRelativePoint(event);
 
     if (!point) {
       return;
@@ -211,9 +232,9 @@ function Home({ user, onRequireAuth }) {
           await loadLeaderboard();
         } else if (result.levelCompleted && result.nextLevel) {
           setCurrentLevel(result.nextLevel);
+          setSceneObjects(buildSceneObjects());
           setFoundTargets(result.nextLevel.foundTargets || []);
           setSelectedTarget(result.nextLevel.targets?.[0] || "");
-          setIsSceneLoading(true);
         }
 
         setErrorMessage("");
@@ -236,7 +257,7 @@ function Home({ user, onRequireAuth }) {
     } finally {
       setIsValidatingClick(false);
     }
-  }, [completedTimeTaken, gameId, gameState, getImageRelativePoint, isValidatingClick, loadLeaderboard, playTone, selectedTarget, currentLevel]);
+  }, [buildSceneObjects, completedTimeTaken, gameId, gameState, getSceneRelativePoint, isValidatingClick, loadLeaderboard, playTone, selectedTarget, currentLevel]);
 
   useEffect(() => {
     const fallbackTarget = remainingTargets[0] || "";
@@ -293,20 +314,19 @@ function Home({ user, onRequireAuth }) {
   }, [loadLeaderboard]);
 
   useEffect(() => {
-    if (!gameId) {
+    if (!gameStartedAt) {
       return undefined;
     }
 
-    const startedAt = Date.now();
     const intervalId = setInterval(() => {
-      const seconds = Math.floor((Date.now() - startedAt) / 1000);
+      const seconds = Math.floor((Date.now() - gameStartedAt) / 1000);
       setElapsedSeconds(seconds);
     }, 1000);
 
     return () => {
       clearInterval(intervalId);
     };
-  }, [gameId]);
+  }, [gameStartedAt]);
 
   return (
     <main className="home-page">
@@ -327,7 +347,6 @@ function Home({ user, onRequireAuth }) {
             </div>
           ) : null}
 
-          {gameState === "loading" ? <span className="badge">Starting...</span> : null}
         </div>
       </section>
 
@@ -342,8 +361,6 @@ function Home({ user, onRequireAuth }) {
               </button>
             </section>
           ) : null}
-
-          {gameState === "loading" ? <p className="empty-state">Starting...</p> : null}
 
           {gameState === "error" ? (
             <section className="completion-card">
@@ -385,7 +402,7 @@ function Home({ user, onRequireAuth }) {
               ) : null}
 
               <section className="level-toolbar">
-                <strong>{currentLevel?.name || "Loading level..."}</strong>
+                <strong>{currentLevel?.name || "Generated Scene"}</strong>
                 <div className="target-selector-wrap">
                   <label htmlFor="target-selector">Target:</label>
                   <select
@@ -405,21 +422,30 @@ function Home({ user, onRequireAuth }) {
               </section>
 
               <section className="scene-frame">
-                <img
-                  ref={imageRef}
-                  src={currentLevel?.image?.url || ""}
-                  alt="Where is Waldo game"
-                  loading="lazy"
-                  decoding="async"
-                  fetchPriority="auto"
-                  onLoad={() => setIsSceneLoading(false)}
-                  onClick={handleImageClick}
-                  draggable={false}
-                  className="scene-image"
+                <div
+                  className="generated-scene"
+                  onClick={handleSceneClick}
                   style={{ cursor: isValidatingClick ? "progress" : "crosshair" }}
-                />
+                  role="presentation"
+                >
+                  {sceneObjects.map((item) => {
+                    const shapeStyle = {
+                      left: `${(item.x / SCENE_WIDTH) * 100}%`,
+                      top: `${(item.y / SCENE_HEIGHT) * 100}%`,
+                      width: `${(item.size / SCENE_WIDTH) * 100}%`,
+                      height: `${(item.size / SCENE_HEIGHT) * 100}%`,
+                      backgroundColor: item.color,
+                    };
 
-                {isSceneLoading ? <div className="scene-loading">Loading high-res level...</div> : null}
+                    return (
+                      <div
+                        key={item.id}
+                        className={`scene-shape scene-shape--${item.shape}`}
+                        style={shapeStyle}
+                      />
+                    );
+                  })}
+                </div>
 
                 {resultPulse ? (
                   <div
