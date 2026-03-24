@@ -11,11 +11,11 @@ function Home({ user, onRequireAuth }) {
   const isLoggedIn = Boolean(user);
 
   const [gameId, setGameId] = useState(null);
+  const [gameState, setGameState] = useState("idle");
   const [currentLevel, setCurrentLevel] = useState(null);
   const [foundTargets, setFoundTargets] = useState([]);
   const [selectedTarget, setSelectedTarget] = useState("");
   const [isSceneLoading, setIsSceneLoading] = useState(false);
-  const [isStartingGame, setIsStartingGame] = useState(false);
   const [isLoadingLeaderboard, setIsLoadingLeaderboard] = useState(false);
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const [resultPulse, setResultPulse] = useState(null);
@@ -114,6 +114,7 @@ function Home({ user, onRequireAuth }) {
 
   const clearRuntimeState = () => {
     setElapsedSeconds(0);
+    setGameId(null);
     setCurrentLevel(null);
     setFoundTargets([]);
     setSelectedTarget("");
@@ -142,7 +143,8 @@ function Home({ user, onRequireAuth }) {
 
   const startNewGame = useCallback(async () => {
     clearRuntimeState();
-    setIsStartingGame(true);
+    setGameState("loading");
+
     try {
       const session = await startGame();
       setGameId(session.gameId);
@@ -150,14 +152,22 @@ function Home({ user, onRequireAuth }) {
       setFoundTargets(session.currentLevel?.foundTargets || []);
       setSelectedTarget(session.currentLevel?.targets?.[0] || "");
       setIsSceneLoading(true);
-    } catch {
-      setErrorMessage("Failed to start game session.");
+      setGameState("playing");
+    } catch (error) {
+      console.error("Failed to start game:", error);
+      setErrorMessage("Failed to start game. Try again.");
+      setGameState("error");
     } finally {
-      setIsStartingGame(false);
+      // Guardrail so the UI never gets stuck in loading.
+      setGameState((previousState) => (previousState === "loading" ? "error" : previousState));
     }
   }, []);
 
   const handleImageClick = useCallback(async (event) => {
+    if (gameState !== "playing") {
+      return;
+    }
+
     if (!gameId || !currentLevel) {
       setErrorMessage("Game session is not ready. Please wait...");
       return;
@@ -226,7 +236,7 @@ function Home({ user, onRequireAuth }) {
     } finally {
       setIsValidatingClick(false);
     }
-  }, [completedTimeTaken, gameId, getImageRelativePoint, isValidatingClick, loadLeaderboard, playTone, selectedTarget, currentLevel]);
+  }, [completedTimeTaken, gameId, gameState, getImageRelativePoint, isValidatingClick, loadLeaderboard, playTone, selectedTarget, currentLevel]);
 
   useEffect(() => {
     const fallbackTarget = remainingTargets[0] || "";
@@ -279,13 +289,8 @@ function Home({ user, onRequireAuth }) {
   }, [scoreShareUrl]);
 
   useEffect(() => {
-    const initGame = async () => {
-      await startNewGame();
-      await loadLeaderboard();
-    };
-
-    initGame();
-  }, [loadLeaderboard, startNewGame]);
+    loadLeaderboard();
+  }, [loadLeaderboard]);
 
   useEffect(() => {
     if (!gameId) {
@@ -314,97 +319,125 @@ function Home({ user, onRequireAuth }) {
         </div>
 
         <div className="hud__right">
-          <span className="badge">⏱ Timer: {elapsedSeconds}s</span>
-          <span className="badge">
-            🧭 Level: {currentLevel ? `${currentLevel.orderIndex}` : "-"}
-          </span>
-          <span className="badge">
-            🔎 Found: {foundTargets.length}/{currentLevel?.targets?.length || 0}
-          </span>
-          <button className="button-primary" type="button" onClick={startNewGame}>
-            {isStartingGame ? "Starting..." : gameId ? "Restart Game" : "Start Game"}
-          </button>
+          {gameState === "playing" ? (
+            <>
+              <span className="badge">⏱ Timer: {elapsedSeconds}s</span>
+              <span className="badge">
+                🧭 Level: {currentLevel ? `${currentLevel.orderIndex}` : "-"}
+              </span>
+              <span className="badge">
+                🔎 Found: {foundTargets.length}/{currentLevel?.targets?.length || 0}
+              </span>
+            </>
+          ) : null}
+
+          {gameState === "loading" ? <span className="badge">Starting...</span> : null}
         </div>
       </section>
 
       <section className="game-layout">
         <section className="game-main card">
-          {completedTimeTaken !== null ? (
+          {gameState === "idle" ? (
             <section className="completion-card">
-              <h2>Game Completed!</h2>
-              <p>Final Time: {completedTimeTaken.toFixed(2)}s</p>
-
-              {!isLoggedIn ? (
-                <div className="completion-login-note">
-                  <p>You played in guest mode. Log in to save your score.</p>
-                  <button className="button-secondary" type="button" onClick={onRequireAuth}>
-                    Login to Save
-                  </button>
-                </div>
-              ) : null}
-
-              {isLoggedIn && !hasSubmittedScore ? <p>Submitting score...</p> : null}
-
-              {hasSubmittedScore ? <p>Score submitted successfully.</p> : null}
-
-              {hasSubmittedScore && scoreShareUrl ? (
-                <div className="completion-login-note">
-                  <button className="button-secondary" type="button" onClick={handleCopyShareLink}>
-                    {didCopyShareUrl ? "Copied!" : "Copy Share Link"}
-                  </button>
-                </div>
-              ) : null}
+              <h2>Ready to play?</h2>
+              <p>Start a new game session when you are ready.</p>
+              <button className="button-primary" type="button" onClick={startNewGame}>
+                Start Game
+              </button>
             </section>
           ) : null}
 
-          <section className="level-toolbar">
-            <strong>{currentLevel?.name || "Loading level..."}</strong>
-            <div className="target-selector-wrap">
-              <label htmlFor="target-selector">Target:</label>
-              <select
-                id="target-selector"
-                className="target-selector"
-                value={selectedTarget}
-                onChange={(event) => setSelectedTarget(event.target.value)}
-                disabled={remainingTargets.length === 0 || completedTimeTaken !== null}
-              >
-                {remainingTargets.map((targetName) => (
-                  <option key={targetName} value={targetName}>
-                    {targetName}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </section>
+          {gameState === "loading" ? <p className="empty-state">Starting...</p> : null}
 
-          <section className="scene-frame">
-            <img
-              ref={imageRef}
-              src={currentLevel?.image?.url || ""}
-              alt="Where is Waldo game"
-              loading="lazy"
-              decoding="async"
-              fetchPriority="auto"
-              onLoad={() => setIsSceneLoading(false)}
-              onClick={handleImageClick}
-              draggable={false}
-              className="scene-image"
-              style={{ cursor: isValidatingClick ? "progress" : "crosshair" }}
-            />
+          {gameState === "error" ? (
+            <section className="completion-card">
+              <p className="error-text">Failed to start game. Try again.</p>
+              <button className="button-primary" type="button" onClick={startNewGame}>
+                Retry
+              </button>
+            </section>
+          ) : null}
 
-            {isSceneLoading ? <div className="scene-loading">Loading high-res level...</div> : null}
+          {gameState === "playing" ? (
+            <>
+              {completedTimeTaken !== null ? (
+                <section className="completion-card">
+                  <h2>Game Completed!</h2>
+                  <p>Final Time: {completedTimeTaken.toFixed(2)}s</p>
 
-            {resultPulse ? (
-              <div
-                key={resultPulse.key}
-                className={`result-pulse result-${resultPulse.status}`}
-                style={{ left: `${resultPulse.x}%`, top: `${resultPulse.y}%` }}
-              />
-            ) : null}
-          </section>
+                  {!isLoggedIn ? (
+                    <div className="completion-login-note">
+                      <p>You played in guest mode. Log in to save your score.</p>
+                      <button className="button-secondary" type="button" onClick={onRequireAuth}>
+                        Login to Save
+                      </button>
+                    </div>
+                  ) : null}
 
-          {errorMessage ? (
-            <p className="error-text">{errorMessage}</p>
+                  {isLoggedIn && !hasSubmittedScore ? <p>Submitting score...</p> : null}
+
+                  {hasSubmittedScore ? <p>Score submitted successfully.</p> : null}
+
+                  {hasSubmittedScore && scoreShareUrl ? (
+                    <div className="completion-login-note">
+                      <button className="button-secondary" type="button" onClick={handleCopyShareLink}>
+                        {didCopyShareUrl ? "Copied!" : "Copy Share Link"}
+                      </button>
+                    </div>
+                  ) : null}
+                </section>
+              ) : null}
+
+              <section className="level-toolbar">
+                <strong>{currentLevel?.name || "Loading level..."}</strong>
+                <div className="target-selector-wrap">
+                  <label htmlFor="target-selector">Target:</label>
+                  <select
+                    id="target-selector"
+                    className="target-selector"
+                    value={selectedTarget}
+                    onChange={(event) => setSelectedTarget(event.target.value)}
+                    disabled={remainingTargets.length === 0 || completedTimeTaken !== null}
+                  >
+                    {remainingTargets.map((targetName) => (
+                      <option key={targetName} value={targetName}>
+                        {targetName}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </section>
+
+              <section className="scene-frame">
+                <img
+                  ref={imageRef}
+                  src={currentLevel?.image?.url || ""}
+                  alt="Where is Waldo game"
+                  loading="lazy"
+                  decoding="async"
+                  fetchPriority="auto"
+                  onLoad={() => setIsSceneLoading(false)}
+                  onClick={handleImageClick}
+                  draggable={false}
+                  className="scene-image"
+                  style={{ cursor: isValidatingClick ? "progress" : "crosshair" }}
+                />
+
+                {isSceneLoading ? <div className="scene-loading">Loading high-res level...</div> : null}
+
+                {resultPulse ? (
+                  <div
+                    key={resultPulse.key}
+                    className={`result-pulse result-${resultPulse.status}`}
+                    style={{ left: `${resultPulse.x}%`, top: `${resultPulse.y}%` }}
+                  />
+                ) : null}
+              </section>
+
+              {errorMessage ? (
+                <p className="error-text">{errorMessage}</p>
+              ) : null}
+            </>
           ) : null}
         </section>
 
