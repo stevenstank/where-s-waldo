@@ -40,8 +40,6 @@ function Home({ user, onRequireAuth }) {
   const [successMessage, setSuccessMessage] = useState("");
   const [leaderboardRows, setLeaderboardRows] = useState([]);
   const [leaderboardError, setLeaderboardError] = useState("");
-  const [scoreShareUrl, setScoreShareUrl] = useState("");
-  const [didCopyShareUrl, setDidCopyShareUrl] = useState(false);
   const runTokenRef = useRef(0);
 
   const playTone = useCallback((frequency, duration) => {
@@ -135,8 +133,6 @@ function Home({ user, onRequireAuth }) {
     setHasSubmittedScore(false);
     setErrorMessage("");
     setSuccessMessage("");
-    setScoreShareUrl("");
-    setDidCopyShareUrl(false);
   }, []);
 
   const loadLeaderboard = useCallback(async () => {
@@ -301,7 +297,6 @@ function Home({ user, onRequireAuth }) {
           return;
         }
         setHasSubmittedScore(true);
-        setScoreShareUrl(`${window.location.origin}/leaderboard?game=${gameId}`);
         await loadLeaderboard();
       } catch (error) {
         if (runTokenRef.current !== activeRunToken) {
@@ -317,19 +312,6 @@ function Home({ user, onRequireAuth }) {
 
     submitLoggedInScore();
   }, [completedTimeTaken, gameId, hasSubmittedScore, isLoggedIn, isSubmittingScore, loadLeaderboard]);
-
-  const handleCopyShareLink = useCallback(async () => {
-    if (!scoreShareUrl) {
-      return;
-    }
-
-    try {
-      await navigator.clipboard.writeText(scoreShareUrl);
-      setDidCopyShareUrl(true);
-    } catch {
-      setErrorMessage("Could not copy share link.");
-    }
-  }, [scoreShareUrl]);
 
   useEffect(() => {
     loadLeaderboard();
@@ -433,14 +415,6 @@ function Home({ user, onRequireAuth }) {
                   {isLoggedIn && !hasSubmittedScore ? <p>Submitting score...</p> : null}
 
                   {hasSubmittedScore ? <p>Score submitted successfully.</p> : null}
-
-                  {hasSubmittedScore && scoreShareUrl ? (
-                    <div className="completion-login-note">
-                      <button className="button-secondary" type="button" onClick={handleCopyShareLink}>
-                        {didCopyShareUrl ? "Copied!" : "Copy Share Link"}
-                      </button>
-                    </div>
-                  ) : null}
                 </section>
               ) : null}
 
