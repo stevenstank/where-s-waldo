@@ -20,14 +20,27 @@ const prisma = require("./config/prisma");
 const app = express();
 const HOST = "0.0.0.0";
 
+const allowedOrigins = new Set([
+  "http://localhost:5173",
+  "https://where-s-waldo-roan.vercel.app",
+  "https://where-s-waldo-git-main-stevenstank-projects.vercel.app",
+]);
+
 const corsOptions = {
-  origin: [
-    "http://localhost:5173",
-    "https://where-s-waldo-roan.vercel.app",
-  ],
+  origin: (origin, callback) => {
+    console.log(`[CORS] Incoming origin: ${origin || "no-origin"}`);
+
+    if (!origin || allowedOrigins.has(origin)) {
+      callback(null, true);
+      return;
+    }
+
+    callback(new Error("CORS origin denied"));
+  },
   credentials: true,
   methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
   allowedHeaders: ["Content-Type", "Authorization"],
+  optionsSuccessStatus: 204,
 };
 
 app.use(cors(corsOptions));
