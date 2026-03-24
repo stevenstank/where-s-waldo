@@ -102,10 +102,7 @@ const refreshAccessToken = async () => {
 };
 
 export const startGame = async () =>
-  request(toApiUrl("/api/game/start"), {
-    method: "POST",
-    body: JSON.stringify({}),
-  });
+  request(toApiUrl("/api/game/start"));
 
 export const getGameState = async (gameId) => request(toApiUrl(`/api/game/${gameId}/state`));
 

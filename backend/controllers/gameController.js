@@ -63,10 +63,14 @@ const startGame = async (req, res, next) => {
       },
     });
 
-    return res.status(201).json({
+    const currentLevel = formatLevelForClient(firstLevel, []);
+
+    return res.status(200).json({
       gameId: game.id,
+      imageUrl: currentLevel.image.url,
+      targets: currentLevel.targets,
       gameCompleted: false,
-      currentLevel: formatLevelForClient(firstLevel, []),
+      currentLevel,
     });
   } catch (error) {
     return next(error);
