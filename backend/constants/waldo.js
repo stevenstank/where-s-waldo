@@ -1,0 +1,9 @@
+const WALDO_NAME = "Waldo";
+const WALDO_RENDER_WIDTH = 40;
+const WALDO_RENDER_HEIGHT = 60;
+
+module.exports = {
+  WALDO_NAME,
+  WALDO_RENDER_WIDTH,
+  WALDO_RENDER_HEIGHT,
+};

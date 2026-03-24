@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import "./Home.css";
 import {
   getLeaderboard,
@@ -7,10 +7,18 @@ import {
   validateClick,
 } from "../services/api";
 
-function Home({ user, onRequireAuth }) {
-  const SCENE_WIDTH = 3000;
-  const SCENE_HEIGHT = 2000;
+const SCENE_WIDTH = 3000;
+const SCENE_HEIGHT = 2000;
+const PLACEHOLDER_LEVEL = {
+  id: "local-generated",
+  slug: "generated-scene",
+  name: "Generated Scene",
+  orderIndex: 1,
+  targets: ["Waldo"],
+  foundTargets: [],
+};
 
+function Home({ user, onRequireAuth }) {
   const isLoggedIn = Boolean(user);
 
   const [gameId, setGameId] = useState(null);
@@ -24,14 +32,17 @@ function Home({ user, onRequireAuth }) {
   const [gameStartedAt, setGameStartedAt] = useState(null);
   const [resultPulse, setResultPulse] = useState(null);
   const [isValidatingClick, setIsValidatingClick] = useState(false);
+  const [isStartingGame, setIsStartingGame] = useState(false);
   const [completedTimeTaken, setCompletedTimeTaken] = useState(null);
   const [isSubmittingScore, setIsSubmittingScore] = useState(false);
   const [hasSubmittedScore, setHasSubmittedScore] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
+  const [successMessage, setSuccessMessage] = useState("");
   const [leaderboardRows, setLeaderboardRows] = useState([]);
   const [leaderboardError, setLeaderboardError] = useState("");
   const [scoreShareUrl, setScoreShareUrl] = useState("");
   const [didCopyShareUrl, setDidCopyShareUrl] = useState(false);
+  const runTokenRef = useRef(0);
 
   const playTone = useCallback((frequency, duration) => {
     if (typeof window === "undefined") {
@@ -86,7 +97,7 @@ function Home({ user, onRequireAuth }) {
     }
 
     return generated;
-  }, [SCENE_HEIGHT, SCENE_WIDTH]);
+  }, []);
 
   const getSceneRelativePoint = useCallback((event) => {
     const rect = event.currentTarget.getBoundingClientRect();
@@ -107,9 +118,9 @@ function Home({ user, onRequireAuth }) {
       pulseXPercent: (localX / rect.width) * 100,
       pulseYPercent: (localY / rect.height) * 100,
     };
-  }, [SCENE_HEIGHT, SCENE_WIDTH]);
+  }, []);
 
-  const clearRuntimeState = () => {
+  const clearRuntimeState = useCallback(() => {
     setElapsedSeconds(0);
     setGameStartedAt(null);
     setGameId(null);
@@ -118,13 +129,15 @@ function Home({ user, onRequireAuth }) {
     setSceneObjects([]);
     setFoundTargets([]);
     setResultPulse(null);
+    setIsValidatingClick(false);
     setCompletedTimeTaken(null);
     setIsSubmittingScore(false);
     setHasSubmittedScore(false);
     setErrorMessage("");
+    setSuccessMessage("");
     setScoreShareUrl("");
     setDidCopyShareUrl(false);
-  };
+  }, []);
 
   const loadLeaderboard = useCallback(async () => {
     setIsLoadingLeaderboard(true);
@@ -139,47 +152,58 @@ function Home({ user, onRequireAuth }) {
     }
   }, []);
 
-  const startNewGame = useCallback(() => {
+  const startNewGame = useCallback(async () => {
+    const runToken = runTokenRef.current + 1;
+    runTokenRef.current = runToken;
+
     clearRuntimeState();
     const generatedScene = buildSceneObjects();
     setSceneObjects(generatedScene);
-    setCurrentLevel({
-      id: "local-generated",
-      slug: "generated-scene",
-      name: "Generated Scene",
-      orderIndex: 1,
-      targets: ["Waldo"],
-      foundTargets: [],
-    });
-    setWaldoPosition(null);
-    setGameStartedAt(Date.now());
+    setCurrentLevel(PLACEHOLDER_LEVEL);
+    const startedAt = Date.now();
+    setGameStartedAt(startedAt);
     setGameState("playing");
+    setIsStartingGame(true);
 
-    (async () => {
-      try {
-        const session = await startGame();
-        setGameId(session.gameId);
-        setCurrentLevel(session.currentLevel || null);
-        setWaldoPosition(session.waldoPosition || null);
-        setFoundTargets(session.currentLevel?.foundTargets || []);
-      } catch (error) {
-        console.error("Failed to start game:", error);
-        setErrorMessage("Failed to start game. Try again.");
-        setGameState("error");
+    try {
+      const session = await startGame();
+
+      if (runTokenRef.current !== runToken) {
+        return;
       }
-    })();
-  }, [buildSceneObjects]);
+
+      setGameId(session.gameId);
+      setCurrentLevel(session.currentLevel || PLACEHOLDER_LEVEL);
+      setWaldoPosition(session.waldoPosition || null);
+      setFoundTargets(session.currentLevel?.foundTargets || []);
+      setElapsedSeconds(0);
+      setGameStartedAt(startedAt);
+      setErrorMessage("");
+    } catch (error) {
+      if (runTokenRef.current !== runToken) {
+        return;
+      }
+
+      console.error("Failed to start game:", error);
+      setErrorMessage("Failed to start game. Try again.");
+      setGameStartedAt(null);
+      setGameState("error");
+    } finally {
+      if (runTokenRef.current === runToken) {
+        setIsStartingGame(false);
+      }
+    }
+  }, [buildSceneObjects, clearRuntimeState]);
 
   const handleSceneClick = useCallback(async (event) => {
-    if (gameState !== "playing") {
-      return;
-    }
-
-    if (!gameId || !waldoPosition) {
-      return;
-    }
-
-    if (completedTimeTaken !== null || isValidatingClick) {
+    if (
+      gameState !== "playing"
+      || isStartingGame
+      || isValidatingClick
+      || completedTimeTaken !== null
+      || !gameId
+      || !waldoPosition
+    ) {
       return;
     }
 
@@ -190,8 +214,10 @@ function Home({ user, onRequireAuth }) {
     }
 
     setErrorMessage("");
+    setSuccessMessage("");
 
     setIsValidatingClick(true);
+    const activeRunToken = runTokenRef.current;
 
     try {
       const result = await validateClick({
@@ -201,6 +227,10 @@ function Home({ user, onRequireAuth }) {
         y: point.imageY,
       });
 
+      if (runTokenRef.current !== activeRunToken) {
+        return;
+      }
+
       if (result.success) {
         playTone(740, 0.14);
         setResultPulse({
@@ -209,11 +239,14 @@ function Home({ user, onRequireAuth }) {
           status: "correct",
           key: Date.now(),
         });
-        setFoundTargets(["Waldo"]);
+        setFoundTargets(result.foundTargets || ["Waldo"]);
 
         if (result.gameCompleted && typeof result.timeTaken === "number") {
           playTone(880, 0.2);
           setCompletedTimeTaken(result.timeTaken);
+          setElapsedSeconds(Math.floor(result.timeTaken));
+          setGameStartedAt(null);
+          setSuccessMessage("Waldo found!");
           await loadLeaderboard();
         }
 
@@ -227,17 +260,24 @@ function Home({ user, onRequireAuth }) {
           key: Date.now(),
         });
         if (result.gameCompleted) {
+          setGameStartedAt(null);
           setErrorMessage("This game has already been completed.");
         } else {
           setErrorMessage("Not a match. Try another spot.");
         }
       }
     } catch (error) {
+      if (runTokenRef.current !== activeRunToken) {
+        return;
+      }
+
       setErrorMessage(error.message || "Validation failed");
     } finally {
-      setIsValidatingClick(false);
+      if (runTokenRef.current === activeRunToken) {
+        setIsValidatingClick(false);
+      }
     }
-  }, [completedTimeTaken, gameId, gameState, getSceneRelativePoint, isValidatingClick, loadLeaderboard, playTone, waldoPosition]);
+  }, [completedTimeTaken, gameId, gameState, getSceneRelativePoint, isStartingGame, isValidatingClick, loadLeaderboard, playTone, waldoPosition]);
 
   useEffect(() => {
     if (!isLoggedIn || completedTimeTaken === null || hasSubmittedScore) {
@@ -249,6 +289,7 @@ function Home({ user, onRequireAuth }) {
         return;
       }
 
+      const activeRunToken = runTokenRef.current;
       setIsSubmittingScore(true);
       setErrorMessage("");
 
@@ -256,13 +297,21 @@ function Home({ user, onRequireAuth }) {
         await submitScore({
           gameId,
         });
+        if (runTokenRef.current !== activeRunToken) {
+          return;
+        }
         setHasSubmittedScore(true);
         setScoreShareUrl(`${window.location.origin}/leaderboard?game=${gameId}`);
         await loadLeaderboard();
       } catch (error) {
+        if (runTokenRef.current !== activeRunToken) {
+          return;
+        }
         setErrorMessage(error.message || "Failed to submit score.");
       } finally {
-        setIsSubmittingScore(false);
+        if (runTokenRef.current === activeRunToken) {
+          setIsSubmittingScore(false);
+        }
       }
     };
 
@@ -287,7 +336,7 @@ function Home({ user, onRequireAuth }) {
   }, [loadLeaderboard]);
 
   useEffect(() => {
-    if (!gameStartedAt) {
+    if (!gameStartedAt || completedTimeTaken !== null) {
       return undefined;
     }
 
@@ -299,7 +348,19 @@ function Home({ user, onRequireAuth }) {
     return () => {
       clearInterval(intervalId);
     };
-  }, [gameStartedAt]);
+  }, [completedTimeTaken, gameStartedAt]);
+
+  const isInteractionLocked = (
+    gameState !== "playing"
+    || isStartingGame
+    || isValidatingClick
+    || completedTimeTaken !== null
+    || !gameId
+    || !waldoPosition
+  );
+  const displayedElapsedSeconds = completedTimeTaken !== null
+    ? Math.floor(completedTimeTaken)
+    : elapsedSeconds;
 
   return (
     <main className="home-page">
@@ -314,12 +375,21 @@ function Home({ user, onRequireAuth }) {
         <div className="hud__right">
           {gameState === "playing" ? (
             <div className="hud-stats">
-              <span className="badge">Timer: {elapsedSeconds}s</span>
+              <span className="badge">Timer: {displayedElapsedSeconds}s</span>
               <span className="badge">Level: {currentLevel ? `${currentLevel.orderIndex}` : "-"}</span>
               <span className="badge">Found: {foundTargets.length}/1</span>
             </div>
           ) : null}
-
+          {gameState === "playing" ? (
+            <button
+              className="button-secondary"
+              type="button"
+              onClick={startNewGame}
+              disabled={isStartingGame}
+            >
+              {isStartingGame ? "Restarting..." : "Restart"}
+            </button>
+          ) : null}
         </div>
       </section>
 
@@ -385,9 +455,13 @@ function Home({ user, onRequireAuth }) {
                 <div
                   className="generated-scene"
                   onClick={handleSceneClick}
-                  style={{ cursor: isValidatingClick ? "progress" : "crosshair" }}
+                  style={{ cursor: isInteractionLocked ? "default" : "crosshair" }}
                   role="presentation"
                 >
+                  {isStartingGame ? (
+                    <div className="scene-loading">Starting new game...</div>
+                  ) : null}
+
                   {sceneObjects.map((item) => {
                     const shapeStyle = {
                       left: `${(item.x / SCENE_WIDTH) * 100}%`,
@@ -435,6 +509,10 @@ function Home({ user, onRequireAuth }) {
 
               {errorMessage ? (
                 <p className="error-text">{errorMessage}</p>
+              ) : null}
+
+              {successMessage ? (
+                <p className="success-text">{successMessage}</p>
               ) : null}
             </>
           ) : null}

@@ -1,8 +1,10 @@
 const prisma = require("../config/prisma");
 const ApiError = require("../utils/apiError");
-const WALDO_NAME = "Waldo";
-const WALDO_RENDER_WIDTH = 80;
-const WALDO_RENDER_HEIGHT = 120;
+const {
+  WALDO_NAME,
+  WALDO_RENDER_WIDTH,
+  WALDO_RENDER_HEIGHT,
+} = require("../constants/waldo");
 
 const formatLevelForClient = (level, foundTargetNames) => ({
   id: level.id,

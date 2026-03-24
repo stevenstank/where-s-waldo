@@ -1,7 +1,9 @@
 const prisma = require("../config/prisma");
 const ApiError = require("../utils/apiError");
-const WALDO_RENDER_WIDTH = 80;
-const WALDO_RENDER_HEIGHT = 120;
+const {
+  WALDO_RENDER_WIDTH,
+  WALDO_RENDER_HEIGHT,
+} = require("../constants/waldo");
 
 const clickTrack = new Map();
 const CLICK_WINDOW_MS = 4000;

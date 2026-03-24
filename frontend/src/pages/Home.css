@@ -153,21 +153,22 @@
   position: absolute;
   z-index: 4;
   border: 1px solid #111;
+  border-radius: 2px;
   background: repeating-linear-gradient(
     to bottom,
     #d71920 0px,
-    #d71920 10px,
-    #ffffff 10px,
-    #ffffff 20px
+    #d71920 7px,
+    #ffffff 7px,
+    #ffffff 14px
   );
 }
 
 .scene-waldo__head {
   position: absolute;
-  width: 46%;
-  height: 30%;
-  left: 27%;
-  top: -28%;
+  width: 52%;
+  height: 34%;
+  left: 24%;
+  top: -32%;
   border-radius: 50%;
   background: #f3c6a4;
   border: 1px solid #111;
@@ -175,20 +176,32 @@
 
 .scene-waldo__glasses {
   position: absolute;
-  width: 52%;
-  height: 22%;
-  left: 24%;
-  top: 38%;
-  border-top: 2px solid #111;
-  border-bottom: 2px solid #111;
+  width: 28%;
+  height: 28%;
+  left: 16%;
+  top: 34%;
+  border: 2px solid #111;
+  border-radius: 50%;
+  background: transparent;
+  box-shadow: 138% 0 0 0 #111;
+}
+
+.scene-waldo__glasses::after {
+  content: "";
+  position: absolute;
+  width: 50%;
+  height: 2px;
+  left: 100%;
+  top: 46%;
+  background: #111;
 }
 
 .scene-waldo__hat {
   position: absolute;
-  width: 40%;
+  width: 44%;
   height: 24%;
-  left: 30%;
-  top: -46%;
+  left: 28%;
+  top: -48%;
   background: #d71920;
   clip-path: polygon(50% 0, 0 100%, 100% 100%);
 }
@@ -222,6 +235,12 @@
 .result-miss {
   border: 2px solid var(--danger);
   background: var(--danger);
+}
+
+.success-text {
+  color: #4adf86;
+  margin-top: 12px;
+  font-size: 26px;
 }
 
 .leaderboard-sidebar {
