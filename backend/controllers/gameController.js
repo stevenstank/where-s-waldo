@@ -7,11 +7,6 @@ const formatLevelForClient = (level, foundTargetNames) => ({
   slug: level.slug,
   name: level.name,
   orderIndex: level.orderIndex,
-  image: {
-    url: level.imageUrl,
-    width: level.imageWidth,
-    height: level.imageHeight,
-  },
   targets: level.targets.map((target) => target.name),
   foundTargets: foundTargetNames,
 });
@@ -39,10 +34,13 @@ const startGame = async (req, res, next) => {
       orderBy: {
         orderIndex: "asc",
       },
-      include: {
+      select: {
+        id: true,
+        slug: true,
+        name: true,
+        orderIndex: true,
         targets: {
           select: {
-            id: true,
             name: true,
           },
           orderBy: {
@@ -77,14 +75,18 @@ const startGame = async (req, res, next) => {
       return createdGame;
     });
 
-    const currentLevel = formatLevelForClient(firstLevel, []);
-
     return res.status(200).json({
       gameId: game.id,
-      imageUrl: currentLevel.image.url,
-      targets: currentLevel.targets,
+      targets: firstLevel.targets.map((target) => target.name),
       gameCompleted: false,
-      currentLevel,
+      currentLevel: {
+        id: firstLevel.id,
+        slug: firstLevel.slug,
+        name: firstLevel.name,
+        orderIndex: firstLevel.orderIndex,
+        targets: firstLevel.targets.map((target) => target.name),
+        foundTargets: [],
+      },
     });
   } catch (error) {
     return next(error);
@@ -118,10 +120,13 @@ const getGameState = async (req, res, next) => {
       where: {
         orderIndex: game.currentLevelOrder,
       },
-      include: {
+      select: {
+        id: true,
+        slug: true,
+        name: true,
+        orderIndex: true,
         targets: {
           select: {
-            id: true,
             name: true,
           },
           orderBy: {
@@ -215,38 +220,10 @@ const finishGame = async (req, res, next) => {
 
 const getGameScene = async (req, res, next) => {
   try {
-    const { gameId } = req.params;
-
-    if (!gameId || typeof gameId !== "string") {
-      throw new ApiError(400, "gameId is required");
-    }
-
-    const game = await prisma.game.findUnique({
-      where: { id: gameId },
-      select: {
-        id: true,
-        currentLevelOrder: true,
-      },
+    return res.status(410).json({
+      message: "Scene images are no longer used. Render scenes procedurally on the client.",
+      code: "SCENE_IMAGES_DISABLED",
     });
-
-    if (!game) {
-      throw new ApiError(404, "game not found");
-    }
-
-    const level = await prisma.level.findUnique({
-      where: {
-        orderIndex: game.currentLevelOrder,
-      },
-      select: {
-        imageUrl: true,
-      },
-    });
-
-    if (!level) {
-      throw new ApiError(404, "level not found");
-    }
-
-    return res.redirect(level.imageUrl);
   } catch (error) {
     return next(error);
   }

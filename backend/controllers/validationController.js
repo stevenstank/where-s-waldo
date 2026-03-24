@@ -107,8 +107,8 @@ const validateCharacter = async (req, res, next) => {
       throw new ApiError(404, "level not found");
     }
 
-    if (x < 0 || x > level.imageWidth || y < 0 || y > level.imageHeight) {
-      throw new ApiError(400, "click must be inside image bounds");
+    if (x < 0 || y < 0) {
+      throw new ApiError(400, "click coordinates must be positive");
     }
 
     const selectedTarget = level.targets.find((target) => target.name === targetName);
@@ -193,7 +193,11 @@ const validateCharacter = async (req, res, next) => {
       orderBy: {
         orderIndex: "asc",
       },
-      include: {
+      select: {
+        id: true,
+        slug: true,
+        name: true,
+        orderIndex: true,
         targets: {
           select: {
             name: true,
@@ -253,11 +257,6 @@ const validateCharacter = async (req, res, next) => {
         slug: nextLevel.slug,
         name: nextLevel.name,
         orderIndex: nextLevel.orderIndex,
-        image: {
-          url: nextLevel.imageUrl,
-          width: nextLevel.imageWidth,
-          height: nextLevel.imageHeight,
-        },
         targets: nextLevel.targets.map((target) => target.name),
         foundTargets: [],
       },
