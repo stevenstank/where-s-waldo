@@ -1,5 +1,6 @@
 const prisma = require("../config/prisma");
 const ApiError = require("../utils/apiError");
+const { assignRandomWaldoSelectionForLevel } = require("../utils/waldoPosition");
 
 const formatLevelForClient = (level, foundTargetNames) => ({
   id: level.id,
@@ -58,12 +59,22 @@ const startGame = async (req, res, next) => {
       });
     }
 
-    const game = await prisma.game.create({
-      data: {
-        startTime: new Date(),
-        userId,
-        currentLevelOrder: firstLevel.orderIndex,
-      },
+    const game = await prisma.$transaction(async (tx) => {
+      const createdGame = await tx.game.create({
+        data: {
+          startTime: new Date(),
+          userId,
+          currentLevelOrder: firstLevel.orderIndex,
+        },
+      });
+
+      await assignRandomWaldoSelectionForLevel({
+        db: tx,
+        gameId: createdGame.id,
+        levelId: firstLevel.id,
+      });
+
+      return createdGame;
     });
 
     const currentLevel = formatLevelForClient(firstLevel, []);

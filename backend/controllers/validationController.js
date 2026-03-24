@@ -1,5 +1,9 @@
 const prisma = require("../config/prisma");
 const ApiError = require("../utils/apiError");
+const {
+  assignRandomWaldoSelectionForLevel,
+  resolveTargetHitboxForGame,
+} = require("../utils/waldoPosition");
 
 const clickTrack = new Map();
 const CLICK_WINDOW_MS = 4000;
@@ -125,8 +129,14 @@ const validateCharacter = async (req, res, next) => {
       },
     });
 
-    const adaptivePadding = Math.max(6, Math.round(Math.min(selectedTarget.width, selectedTarget.height) * 0.06));
-    const success = isInsideBox(x, y, selectedTarget, adaptivePadding);
+    const targetHitbox = await resolveTargetHitboxForGame({
+      db: prisma,
+      gameId: game.id,
+      target: selectedTarget,
+    });
+
+    const adaptivePadding = Math.max(6, Math.round(Math.min(targetHitbox.width, targetHitbox.height) * 0.06));
+    const success = isInsideBox(x, y, targetHitbox, adaptivePadding);
 
     if (!success) {
       return res.status(200).json({
@@ -225,6 +235,12 @@ const validateCharacter = async (req, res, next) => {
       data: {
         currentLevelOrder: nextLevel.orderIndex,
       },
+    });
+
+    await assignRandomWaldoSelectionForLevel({
+      db: prisma,
+      gameId: game.id,
+      levelId: nextLevel.id,
     });
 
     return res.status(200).json({

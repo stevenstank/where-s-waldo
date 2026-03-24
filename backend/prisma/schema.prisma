@@ -27,6 +27,7 @@ model Game {
   completed         Boolean          @default(false)
   scores            Score[]
   foundTargets      GameFoundTarget[]
+  targetSelections  GameTargetSelection[]
 }
 
 model Level {
@@ -52,8 +53,39 @@ model Target {
   height  Int
 
   foundInGames GameFoundTarget[]
+  positions    TargetPosition[]
+  selections   GameTargetSelection[]
 
   @@unique([levelId, name])
+}
+
+model TargetPosition {
+  id       String @id @default(uuid())
+  targetId String
+  target   Target @relation(fields: [targetId], references: [id], onDelete: Cascade)
+  label    String
+  x        Int
+  y        Int
+  width    Int
+  height   Int
+
+  selections GameTargetSelection[]
+
+  @@unique([targetId, label])
+}
+
+model GameTargetSelection {
+  id               String @id @default(uuid())
+  gameId           String
+  targetId         String
+  targetPositionId String
+  createdAt        DateTime @default(now())
+
+  game           Game           @relation(fields: [gameId], references: [id], onDelete: Cascade)
+  target         Target         @relation(fields: [targetId], references: [id], onDelete: Cascade)
+  targetPosition TargetPosition @relation(fields: [targetPositionId], references: [id], onDelete: Cascade)
+
+  @@unique([gameId, targetId])
 }
 
 model GameFoundTarget {
