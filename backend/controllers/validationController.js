@@ -1,9 +1,7 @@
 const prisma = require("../config/prisma");
 const ApiError = require("../utils/apiError");
-const {
-  assignRandomWaldoSelectionForLevel,
-  resolveTargetHitboxForGame,
-} = require("../utils/waldoPosition");
+const WALDO_RENDER_WIDTH = 80;
+const WALDO_RENDER_HEIGHT = 120;
 
 const clickTrack = new Map();
 const CLICK_WINDOW_MS = 4000;
@@ -45,10 +43,10 @@ const isInsideBox = (x, y, box, padding = 0) => {
 
 const validateCharacter = async (req, res, next) => {
   try {
-    const { gameId, targetName, x, y } = req.body;
+    const { gameId, positionId, x, y } = req.body;
 
-    if (!gameId || typeof targetName !== "string" || typeof x !== "number" || typeof y !== "number") {
-      throw new ApiError(400, "gameId, targetName, x, and y are required");
+    if (!gameId || !positionId || typeof x !== "number" || typeof y !== "number") {
+      throw new ApiError(400, "gameId, positionId, x, and y are required");
     }
 
     if (!Number.isFinite(x) || !Number.isFinite(y)) {
@@ -85,181 +83,83 @@ const validateCharacter = async (req, res, next) => {
       });
     }
 
-    const level = await prisma.level.findUnique({
+    if (x < 0 || y < 0) {
+      throw new ApiError(400, "click coordinates must be positive");
+    }
+
+    const selectedPosition = await prisma.gameTargetSelection.findFirst({
       where: {
-        orderIndex: game.currentLevelOrder,
+        gameId: game.id,
+        targetPositionId: positionId,
       },
-      include: {
-        targets: {
+      select: {
+        targetId: true,
+        targetPosition: {
           select: {
             id: true,
-            name: true,
             x: true,
             y: true,
-            width: true,
-            height: true,
           },
         },
       },
     });
 
-    if (!level) {
-      throw new ApiError(404, "level not found");
+    if (!selectedPosition?.targetPosition) {
+      throw new ApiError(404, "position not found for this game session");
     }
 
-    if (x < 0 || y < 0) {
-      throw new ApiError(400, "click coordinates must be positive");
-    }
+    const targetHitbox = {
+      x: selectedPosition.targetPosition.x,
+      y: selectedPosition.targetPosition.y,
+      width: WALDO_RENDER_WIDTH,
+      height: WALDO_RENDER_HEIGHT,
+    };
 
-    const selectedTarget = level.targets.find((target) => target.name === targetName);
-
-    if (!selectedTarget) {
-      throw new ApiError(404, "target not found in current level");
-    }
-
-    const existingFoundRecord = await prisma.gameFoundTarget.findUnique({
-      where: {
-        gameId_targetId: {
-          gameId: game.id,
-          targetId: selectedTarget.id,
-        },
-      },
-      select: {
-        id: true,
-      },
-    });
-
-    const targetHitbox = await resolveTargetHitboxForGame({
-      db: prisma,
-      gameId: game.id,
-      target: selectedTarget,
-    });
-
-    const adaptivePadding = Math.max(6, Math.round(Math.min(targetHitbox.width, targetHitbox.height) * 0.06));
-    const success = isInsideBox(x, y, targetHitbox, adaptivePadding);
+    const success = isInsideBox(x, y, targetHitbox, 0);
 
     if (!success) {
       return res.status(200).json({
         success: false,
         gameCompleted: false,
-        levelCompleted: false,
+        foundTargets: [],
       });
     }
 
-    if (!existingFoundRecord) {
-      await prisma.gameFoundTarget.create({
-        data: {
+    await prisma.gameFoundTarget.upsert({
+      where: {
+        gameId_targetId: {
           gameId: game.id,
-          targetId: selectedTarget.id,
+          targetId: selectedPosition.targetId,
         },
-      });
-    }
-
-    const foundInLevel = await prisma.gameFoundTarget.findMany({
-      where: {
+      },
+      update: {},
+      create: {
         gameId: game.id,
-        target: {
-          levelId: level.id,
-        },
-      },
-      select: {
-        target: {
-          select: {
-            id: true,
-            name: true,
-          },
-        },
+        targetId: selectedPosition.targetId,
       },
     });
 
-    const foundTargetNames = foundInLevel.map((entry) => entry.target.name);
-    const levelCompleted = foundTargetNames.length >= level.targets.length;
-
-    if (!levelCompleted) {
-      return res.status(200).json({
-        success: true,
-        gameCompleted: false,
-        levelCompleted: false,
-        foundTargets: foundTargetNames,
-      });
-    }
-
-    const nextLevel = await prisma.level.findFirst({
-      where: {
-        orderIndex: {
-          gt: game.currentLevelOrder,
-        },
-      },
-      orderBy: {
-        orderIndex: "asc",
-      },
-      select: {
-        id: true,
-        slug: true,
-        name: true,
-        orderIndex: true,
-        targets: {
-          select: {
-            name: true,
-          },
-          orderBy: {
-            name: "asc",
-          },
-        },
-      },
-    });
-
-    if (!nextLevel) {
-      const completedGame = await prisma.game.update({
-        where: { id: game.id },
-        data: {
-          completed: true,
-          endTime: new Date(),
-        },
-        select: {
-          startTime: true,
-          endTime: true,
-        },
-      });
-
-      const timeTaken = (completedGame.endTime.getTime() - completedGame.startTime.getTime()) / 1000;
-      clickTrack.delete(game.id);
-
-      return res.status(200).json({
-        success: true,
-        gameCompleted: true,
-        levelCompleted: true,
-        foundTargets: foundTargetNames,
-        timeTaken,
-      });
-    }
-
-    await prisma.game.update({
+    const completedGame = await prisma.game.update({
       where: { id: game.id },
       data: {
-        currentLevelOrder: nextLevel.orderIndex,
+        completed: true,
+        endTime: new Date(),
+      },
+      select: {
+        startTime: true,
+        endTime: true,
       },
     });
 
-    await assignRandomWaldoSelectionForLevel({
-      db: prisma,
-      gameId: game.id,
-      levelId: nextLevel.id,
-    });
+    const timeTaken = (completedGame.endTime.getTime() - completedGame.startTime.getTime()) / 1000;
+    clickTrack.delete(game.id);
 
     return res.status(200).json({
       success: true,
-      gameCompleted: false,
+      gameCompleted: true,
       levelCompleted: true,
-      foundTargets: foundTargetNames,
-      nextLevel: {
-        id: nextLevel.id,
-        slug: nextLevel.slug,
-        name: nextLevel.name,
-        orderIndex: nextLevel.orderIndex,
-        targets: nextLevel.targets.map((target) => target.name),
-        foundTargets: [],
-      },
+      foundTargets: ["Waldo"],
+      timeTaken,
     });
   } catch (error) {
     return next(error);

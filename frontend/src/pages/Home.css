@@ -149,6 +149,50 @@
   border-radius: 2px;
 }
 
+.scene-waldo {
+  position: absolute;
+  z-index: 4;
+  border: 1px solid #111;
+  background: repeating-linear-gradient(
+    to bottom,
+    #d71920 0px,
+    #d71920 10px,
+    #ffffff 10px,
+    #ffffff 20px
+  );
+}
+
+.scene-waldo__head {
+  position: absolute;
+  width: 46%;
+  height: 30%;
+  left: 27%;
+  top: -28%;
+  border-radius: 50%;
+  background: #f3c6a4;
+  border: 1px solid #111;
+}
+
+.scene-waldo__glasses {
+  position: absolute;
+  width: 52%;
+  height: 22%;
+  left: 24%;
+  top: 38%;
+  border-top: 2px solid #111;
+  border-bottom: 2px solid #111;
+}
+
+.scene-waldo__hat {
+  position: absolute;
+  width: 40%;
+  height: 24%;
+  left: 30%;
+  top: -46%;
+  background: #d71920;
+  clip-path: polygon(50% 0, 0 100%, 100% 100%);
+}
+
 .scene-loading {
   position: absolute;
   left: 12px;

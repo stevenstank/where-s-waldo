@@ -1,192 +1,153 @@
-import { useMemo, useState } from "react";
-import "./GeneratedWaldoBoard.css";
+import { useEffect, useMemo, useRef, useState } from "react";
 
-const BOARD_WIDTH = 1200;
-const BOARD_HEIGHT = 720;
-const MIN_OBJECTS = 200;
-const MAX_OBJECTS = 500;
-const MIN_SIZE = 10;
-const MAX_SIZE = 40;
+const DEFAULT_WIDTH = 1200;
+const DEFAULT_HEIGHT = 720;
+const WALDO_BODY_WIDTH = 80;
+const WALDO_BODY_HEIGHT = 120;
+const HEAD_RADIUS = 18;
+const HAT_HEIGHT = 18;
 
-const SHAPES = ["circle", "square", "triangle", "block"];
+const pickRandomPosition = (positions, canvasWidth, canvasHeight) => {
+  const validPositions = positions.filter((position) => (
+    Number.isFinite(position.x)
+    && Number.isFinite(position.y)
+    && position.x >= 0
+    && position.y >= 0
+    && position.x + WALDO_BODY_WIDTH <= canvasWidth
+    && position.y + WALDO_BODY_HEIGHT <= canvasHeight
+    && position.y - (HEAD_RADIUS * 2 + HAT_HEIGHT) >= 0
+  ));
 
-const randomInt = (min, max) => Math.floor(Math.random() * (max - min + 1)) + min;
-
-const randomColor = () => {
-  const r = randomInt(40, 240);
-  const g = randomInt(40, 240);
-  const b = randomInt(40, 240);
-  return `rgb(${r}, ${g}, ${b})`;
-};
-
-const getOverlapArea = (a, b) => {
-  const xOverlap = Math.max(0, Math.min(a.x + a.width, b.x + b.width) - Math.max(a.x, b.x));
-  const yOverlap = Math.max(0, Math.min(a.y + a.height, b.y + b.height) - Math.max(a.y, b.y));
-  return xOverlap * yOverlap;
-};
-
-const canPlaceRect = (candidate, existing) => {
-  for (const item of existing) {
-    const overlap = getOverlapArea(candidate, item);
-    if (!overlap) {
-      continue;
-    }
-
-    const smallerArea = Math.min(candidate.width * candidate.height, item.width * item.height);
-
-    // Allow slight overlap, but reject heavy stacking.
-    if (overlap > smallerArea * 0.35) {
-      return false;
-    }
+  if (validPositions.length === 0) {
+    return null;
   }
 
-  return true;
+  return validPositions[Math.floor(Math.random() * validPositions.length)];
 };
 
-const createRandomObject = () => {
-  const size = randomInt(MIN_SIZE, MAX_SIZE);
-  const shape = SHAPES[randomInt(0, SHAPES.length - 1)];
+const drawWaldo = (context, waldoTopLeft) => {
+  const { x, y } = waldoTopLeft;
+  const width = WALDO_BODY_WIDTH;
+  const height = WALDO_BODY_HEIGHT;
 
-  return {
-    id: `${Date.now()}-${Math.random()}`,
-    shape,
-    width: size,
-    height: size,
-    x: randomInt(0, BOARD_WIDTH - size),
-    y: randomInt(0, BOARD_HEIGHT - size),
-    color: randomColor(),
-  };
-};
-
-const createWaldoRect = () => {
-  const width = 24;
-  const height = 34;
-
-  return {
-    x: randomInt(0, BOARD_WIDTH - width),
-    y: randomInt(0, BOARD_HEIGHT - height),
-    width,
-    height,
-  };
-};
-
-const buildScene = () => {
-  const count = randomInt(MIN_OBJECTS, MAX_OBJECTS);
-  const placed = [];
-
-  for (let i = 0; i < count; i += 1) {
-    let candidate = null;
-
-    for (let attempt = 0; attempt < 40; attempt += 1) {
-      const tryObject = createRandomObject();
-      if (canPlaceRect(tryObject, placed)) {
-        candidate = tryObject;
-        break;
-      }
-    }
-
-    if (!candidate) {
-      candidate = createRandomObject();
-    }
-
-    placed.push(candidate);
+  // Body with alternating red/white horizontal stripes.
+  const stripeCount = 8;
+  const stripeHeight = height / stripeCount;
+  for (let index = 0; index < stripeCount; index += 1) {
+    context.fillStyle = index % 2 === 0 ? "#d71920" : "#ffffff";
+    context.fillRect(x, y + index * stripeHeight, width, stripeHeight);
   }
 
-  let waldoCandidate = createWaldoRect();
-  for (let attempt = 0; attempt < 50; attempt += 1) {
-    waldoCandidate = createWaldoRect();
-    if (canPlaceRect(waldoCandidate, placed)) {
-      break;
-    }
-  }
+  context.strokeStyle = "#111111";
+  context.lineWidth = 1;
+  context.strokeRect(x, y, width, height);
 
-  return {
-    objects: placed,
-    waldo: waldoCandidate,
-  };
+  // Head.
+  const headRadius = HEAD_RADIUS;
+  const headCenterX = x + width / 2;
+  const headCenterY = y - headRadius;
+  context.fillStyle = "#f3c6a4";
+  context.beginPath();
+  context.arc(headCenterX, headCenterY, headRadius, 0, Math.PI * 2);
+  context.fill();
+  context.stroke();
+
+  // Glasses.
+  const eyeOffset = headRadius * 0.5;
+  const lensRadius = Math.max(3, headRadius * 0.28);
+  context.beginPath();
+  context.arc(headCenterX - eyeOffset, headCenterY, lensRadius, 0, Math.PI * 2);
+  context.arc(headCenterX + eyeOffset, headCenterY, lensRadius, 0, Math.PI * 2);
+  context.moveTo(headCenterX - eyeOffset + lensRadius, headCenterY);
+  context.lineTo(headCenterX + eyeOffset - lensRadius, headCenterY);
+  context.stroke();
+
+  // Hat (small red triangle).
+  const hatHeight = HAT_HEIGHT;
+  context.fillStyle = "#d71920";
+  context.beginPath();
+  context.moveTo(headCenterX, headCenterY - headRadius - hatHeight);
+  context.lineTo(headCenterX - headRadius * 0.8, headCenterY - headRadius * 0.2);
+  context.lineTo(headCenterX + headRadius * 0.8, headCenterY - headRadius * 0.2);
+  context.closePath();
+  context.fill();
+  context.stroke();
 };
 
-function GeneratedWaldoBoard() {
-  const [scene] = useState(buildScene);
+function GeneratedWaldoBoard({
+  positions,
+  canvasWidth = DEFAULT_WIDTH,
+  canvasHeight = DEFAULT_HEIGHT,
+}) {
+  const canvasRef = useRef(null);
   const [found, setFound] = useState(false);
 
-  const { objects, waldo } = scene;
+  const waldoPosition = useMemo(
+    () => pickRandomPosition(positions || [], canvasWidth, canvasHeight),
+    [canvasHeight, canvasWidth, positions],
+  );
 
-  const statusText = useMemo(() => {
-    if (found) {
-      return "You found Waldo.";
-    }
-
-    return "Find Waldo in the generated scene.";
-  }, [found]);
-
-  const handleBoardClick = (event) => {
-    if (!waldo || found) {
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) {
       return;
     }
 
-    const boardRect = event.currentTarget.getBoundingClientRect();
-    const scaleX = BOARD_WIDTH / boardRect.width;
-    const scaleY = BOARD_HEIGHT / boardRect.height;
+    const context = canvas.getContext("2d");
+    if (!context) {
+      return;
+    }
 
-    const clickX = (event.clientX - boardRect.left) * scaleX;
-    const clickY = (event.clientY - boardRect.top) * scaleY;
+    context.clearRect(0, 0, canvasWidth, canvasHeight);
+    context.fillStyle = "#0f0f0f";
+    context.fillRect(0, 0, canvasWidth, canvasHeight);
 
-    const withinX = clickX >= waldo.x && clickX <= waldo.x + waldo.width;
-    const withinY = clickY >= waldo.y && clickY <= waldo.y + waldo.height;
+    if (waldoPosition) {
+      drawWaldo(context, waldoPosition);
+    }
+  }, [canvasHeight, canvasWidth, waldoPosition]);
 
-    if (withinX && withinY) {
+  const handleCanvasClick = (event) => {
+    if (!waldoPosition || found) {
+      return;
+    }
+
+    const canvas = canvasRef.current;
+    if (!canvas) {
+      return;
+    }
+
+    const rect = canvas.getBoundingClientRect();
+    const scaleX = canvasWidth / rect.width;
+    const scaleY = canvasHeight / rect.height;
+
+    const clickX = (event.clientX - rect.left) * scaleX;
+    const clickY = (event.clientY - rect.top) * scaleY;
+
+    const insideX = clickX >= waldoPosition.x && clickX <= waldoPosition.x + WALDO_BODY_WIDTH;
+    const insideY = clickY >= waldoPosition.y && clickY <= waldoPosition.y + WALDO_BODY_HEIGHT;
+
+    if (insideX && insideY) {
       setFound(true);
     }
   };
 
   return (
-    <section className="generated-waldo-wrap">
-      <header className="generated-waldo-header">
-        <h2>Generated Waldo Scene</h2>
-        <p>{statusText}</p>
-      </header>
-
-      <div
-        className="generated-waldo-board"
-        onClick={handleBoardClick}
-      >
-        {objects.map((item) => {
-          const style = {
-            left: `${(item.x / BOARD_WIDTH) * 100}%`,
-            top: `${(item.y / BOARD_HEIGHT) * 100}%`,
-            width: `${(item.width / BOARD_WIDTH) * 100}%`,
-            height: `${(item.height / BOARD_HEIGHT) * 100}%`,
-            backgroundColor: item.color,
-          };
-
-          if (item.shape === "circle") {
-            style.borderRadius = "50%";
-          }
-
-          if (item.shape === "triangle") {
-            style.clipPath = "polygon(50% 0, 0 100%, 100% 100%)";
-          }
-
-          if (item.shape === "block") {
-            style.borderRadius = "2px";
-          }
-
-          return <div key={item.id} className="scene-object" style={style} />;
-        })}
-
-        {waldo ? (
-          <div
-            className={`waldo ${found ? "waldo-found" : ""}`}
-            style={{
-              left: `${(waldo.x / BOARD_WIDTH) * 100}%`,
-              top: `${(waldo.y / BOARD_HEIGHT) * 100}%`,
-              width: `${(waldo.width / BOARD_WIDTH) * 100}%`,
-              height: `${(waldo.height / BOARD_HEIGHT) * 100}%`,
-            }}
-          />
-        ) : null}
-      </div>
+    <section>
+      <canvas
+        ref={canvasRef}
+        width={canvasWidth}
+        height={canvasHeight}
+        onClick={handleCanvasClick}
+        style={{ width: "100%", maxWidth: `${canvasWidth}px`, border: "1px solid #222", display: "block" }}
+      />
+      <p>
+        {found
+          ? "You found Waldo."
+          : waldoPosition
+            ? "Find Waldo."
+            : "No valid Waldo position fits inside the canvas."}
+      </p>
     </section>
   );
 }

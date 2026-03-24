@@ -108,10 +108,10 @@ export const getGameState = async (gameId) => request(toApiUrl(`/api/game/${game
 
 export const getGameSceneUrl = (gameId) => toApiUrl(`/api/game/${gameId}/scene.svg`);
 
-export const validateClick = async ({ gameId, targetName, x, y }) =>
+export const validateClick = async ({ gameId, positionId, x, y }) =>
   request(toApiUrl("/api/validate"), {
     method: "POST",
-    body: JSON.stringify({ gameId, targetName, x, y }),
+    body: JSON.stringify({ gameId, positionId, x, y }),
   });
 
 export const finishGame = async (gameId) =>

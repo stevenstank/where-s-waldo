@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import "./Home.css";
 import {
   getLeaderboard,
@@ -8,17 +8,17 @@ import {
 } from "../services/api";
 
 function Home({ user, onRequireAuth }) {
-  const SCENE_WIDTH = 1600;
-  const SCENE_HEIGHT = 900;
+  const SCENE_WIDTH = 3000;
+  const SCENE_HEIGHT = 2000;
 
   const isLoggedIn = Boolean(user);
 
   const [gameId, setGameId] = useState(null);
   const [gameState, setGameState] = useState("idle");
   const [currentLevel, setCurrentLevel] = useState(null);
+  const [waldoPosition, setWaldoPosition] = useState(null);
   const [sceneObjects, setSceneObjects] = useState([]);
   const [foundTargets, setFoundTargets] = useState([]);
-  const [selectedTarget, setSelectedTarget] = useState("");
   const [isLoadingLeaderboard, setIsLoadingLeaderboard] = useState(false);
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const [gameStartedAt, setGameStartedAt] = useState(null);
@@ -62,14 +62,6 @@ function Home({ user, onRequireAuth }) {
     };
   }, []);
 
-  const remainingTargets = useMemo(() => {
-    if (!currentLevel) {
-      return [];
-    }
-
-    return currentLevel.targets.filter((targetName) => !foundTargets.includes(targetName));
-  }, [currentLevel, foundTargets]);
-
   const buildSceneObjects = useCallback(() => {
     const count = Math.floor(Math.random() * 220) + 220;
     const shapes = ["circle", "square", "triangle", "block"];
@@ -97,10 +89,6 @@ function Home({ user, onRequireAuth }) {
   }, [SCENE_HEIGHT, SCENE_WIDTH]);
 
   const getSceneRelativePoint = useCallback((event) => {
-    if (!currentLevel) {
-      return null;
-    }
-
     const rect = event.currentTarget.getBoundingClientRect();
 
     if (rect.width === 0 || rect.height === 0) {
@@ -110,11 +98,8 @@ function Home({ user, onRequireAuth }) {
     const localX = event.clientX - rect.left;
     const localY = event.clientY - rect.top;
 
-    const coordWidth = currentLevel?.image?.width || SCENE_WIDTH;
-    const coordHeight = currentLevel?.image?.height || SCENE_HEIGHT;
-
-    const imageX = Math.round((localX / rect.width) * coordWidth);
-    const imageY = Math.round((localY / rect.height) * coordHeight);
+    const imageX = Math.round((localX / rect.width) * SCENE_WIDTH);
+    const imageY = Math.round((localY / rect.height) * SCENE_HEIGHT);
 
     return {
       imageX,
@@ -122,16 +107,16 @@ function Home({ user, onRequireAuth }) {
       pulseXPercent: (localX / rect.width) * 100,
       pulseYPercent: (localY / rect.height) * 100,
     };
-  }, [SCENE_HEIGHT, SCENE_WIDTH, currentLevel]);
+  }, [SCENE_HEIGHT, SCENE_WIDTH]);
 
   const clearRuntimeState = () => {
     setElapsedSeconds(0);
     setGameStartedAt(null);
     setGameId(null);
     setCurrentLevel(null);
+    setWaldoPosition(null);
     setSceneObjects([]);
     setFoundTargets([]);
-    setSelectedTarget("");
     setResultPulse(null);
     setCompletedTimeTaken(null);
     setIsSubmittingScore(false);
@@ -166,7 +151,7 @@ function Home({ user, onRequireAuth }) {
       targets: ["Waldo"],
       foundTargets: [],
     });
-    setSelectedTarget("Waldo");
+    setWaldoPosition(null);
     setGameStartedAt(Date.now());
     setGameState("playing");
 
@@ -175,8 +160,8 @@ function Home({ user, onRequireAuth }) {
         const session = await startGame();
         setGameId(session.gameId);
         setCurrentLevel(session.currentLevel || null);
+        setWaldoPosition(session.waldoPosition || null);
         setFoundTargets(session.currentLevel?.foundTargets || []);
-        setSelectedTarget(session.currentLevel?.targets?.[0] || "");
       } catch (error) {
         console.error("Failed to start game:", error);
         setErrorMessage("Failed to start game. Try again.");
@@ -190,11 +175,11 @@ function Home({ user, onRequireAuth }) {
       return;
     }
 
-    if (!gameId || !currentLevel) {
+    if (!gameId || !waldoPosition) {
       return;
     }
 
-    if (completedTimeTaken !== null || isValidatingClick || !selectedTarget) {
+    if (completedTimeTaken !== null || isValidatingClick) {
       return;
     }
 
@@ -211,7 +196,7 @@ function Home({ user, onRequireAuth }) {
     try {
       const result = await validateClick({
         gameId,
-        targetName: selectedTarget,
+        positionId: waldoPosition.positionId,
         x: point.imageX,
         y: point.imageY,
       });
@@ -224,17 +209,12 @@ function Home({ user, onRequireAuth }) {
           status: "correct",
           key: Date.now(),
         });
-        setFoundTargets(result.foundTargets || []);
+        setFoundTargets(["Waldo"]);
 
         if (result.gameCompleted && typeof result.timeTaken === "number") {
           playTone(880, 0.2);
           setCompletedTimeTaken(result.timeTaken);
           await loadLeaderboard();
-        } else if (result.levelCompleted && result.nextLevel) {
-          setCurrentLevel(result.nextLevel);
-          setSceneObjects(buildSceneObjects());
-          setFoundTargets(result.nextLevel.foundTargets || []);
-          setSelectedTarget(result.nextLevel.targets?.[0] || "");
         }
 
         setErrorMessage("");
@@ -257,14 +237,7 @@ function Home({ user, onRequireAuth }) {
     } finally {
       setIsValidatingClick(false);
     }
-  }, [buildSceneObjects, completedTimeTaken, gameId, gameState, getSceneRelativePoint, isValidatingClick, loadLeaderboard, playTone, selectedTarget, currentLevel]);
-
-  useEffect(() => {
-    const fallbackTarget = remainingTargets[0] || "";
-    if (!selectedTarget || !remainingTargets.includes(selectedTarget)) {
-      setSelectedTarget(fallbackTarget);
-    }
-  }, [remainingTargets, selectedTarget]);
+  }, [completedTimeTaken, gameId, gameState, getSceneRelativePoint, isValidatingClick, loadLeaderboard, playTone, waldoPosition]);
 
   useEffect(() => {
     if (!isLoggedIn || completedTimeTaken === null || hasSubmittedScore) {
@@ -343,7 +316,7 @@ function Home({ user, onRequireAuth }) {
             <div className="hud-stats">
               <span className="badge">Timer: {elapsedSeconds}s</span>
               <span className="badge">Level: {currentLevel ? `${currentLevel.orderIndex}` : "-"}</span>
-              <span className="badge">Found: {foundTargets.length}/{currentLevel?.targets?.length || 0}</span>
+              <span className="badge">Found: {foundTargets.length}/1</span>
             </div>
           ) : null}
 
@@ -404,20 +377,7 @@ function Home({ user, onRequireAuth }) {
               <section className="level-toolbar">
                 <strong>{currentLevel?.name || "Generated Scene"}</strong>
                 <div className="target-selector-wrap">
-                  <label htmlFor="target-selector">Target:</label>
-                  <select
-                    id="target-selector"
-                    className="target-selector"
-                    value={selectedTarget}
-                    onChange={(event) => setSelectedTarget(event.target.value)}
-                    disabled={remainingTargets.length === 0 || completedTimeTaken !== null}
-                  >
-                    {remainingTargets.map((targetName) => (
-                      <option key={targetName} value={targetName}>
-                        {targetName}
-                      </option>
-                    ))}
-                  </select>
+                  <span>Target: Waldo</span>
                 </div>
               </section>
 
@@ -445,6 +405,23 @@ function Home({ user, onRequireAuth }) {
                       />
                     );
                   })}
+
+                  {waldoPosition ? (
+                    <div
+                      className="scene-waldo"
+                      style={{
+                        left: `${(waldoPosition.x / SCENE_WIDTH) * 100}%`,
+                        top: `${(waldoPosition.y / SCENE_HEIGHT) * 100}%`,
+                        width: `${(waldoPosition.width / SCENE_WIDTH) * 100}%`,
+                        height: `${(waldoPosition.height / SCENE_HEIGHT) * 100}%`,
+                      }}
+                    >
+                      <div className="scene-waldo__head">
+                        <span className="scene-waldo__glasses" />
+                      </div>
+                      <div className="scene-waldo__hat" />
+                    </div>
+                  ) : null}
                 </div>
 
                 {resultPulse ? (

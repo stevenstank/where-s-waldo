@@ -1,6 +1,8 @@
 const prisma = require("../config/prisma");
 const ApiError = require("../utils/apiError");
-const { assignRandomWaldoSelectionForLevel } = require("../utils/waldoPosition");
+const WALDO_NAME = "Waldo";
+const WALDO_RENDER_WIDTH = 80;
+const WALDO_RENDER_HEIGHT = 120;
 
 const formatLevelForClient = (level, foundTargetNames) => ({
   id: level.id,
@@ -39,12 +41,23 @@ const startGame = async (req, res, next) => {
         slug: true,
         name: true,
         orderIndex: true,
+        imageWidth: true,
+        imageHeight: true,
         targets: {
-          select: {
-            name: true,
+          where: {
+            name: WALDO_NAME,
           },
-          orderBy: {
-            name: "asc",
+          take: 1,
+          select: {
+            id: true,
+            name: true,
+            positions: {
+              select: {
+                id: true,
+                x: true,
+                y: true,
+              },
+            },
           },
         },
       },
@@ -57,6 +70,16 @@ const startGame = async (req, res, next) => {
       });
     }
 
+    const waldoTarget = firstLevel.targets[0] || null;
+    if (!waldoTarget || waldoTarget.positions.length === 0) {
+      return res.status(503).json({
+        message: "No Waldo positions configured. Seed TargetPosition data first.",
+        code: "NO_WALDO_POSITIONS",
+      });
+    }
+
+    const randomPosition = waldoTarget.positions[Math.floor(Math.random() * waldoTarget.positions.length)];
+
     const game = await prisma.$transaction(async (tx) => {
       const createdGame = await tx.game.create({
         data: {
@@ -66,10 +89,12 @@ const startGame = async (req, res, next) => {
         },
       });
 
-      await assignRandomWaldoSelectionForLevel({
-        db: tx,
-        gameId: createdGame.id,
-        levelId: firstLevel.id,
+      await tx.gameTargetSelection.create({
+        data: {
+          gameId: createdGame.id,
+          targetId: waldoTarget.id,
+          targetPositionId: randomPosition.id,
+        },
       });
 
       return createdGame;
@@ -77,14 +102,25 @@ const startGame = async (req, res, next) => {
 
     return res.status(200).json({
       gameId: game.id,
-      targets: firstLevel.targets.map((target) => target.name),
+      targets: [WALDO_NAME],
+      waldoPosition: {
+        x: randomPosition.x,
+        y: randomPosition.y,
+        width: WALDO_RENDER_WIDTH,
+        height: WALDO_RENDER_HEIGHT,
+        positionId: randomPosition.id,
+      },
       gameCompleted: false,
       currentLevel: {
         id: firstLevel.id,
         slug: firstLevel.slug,
         name: firstLevel.name,
         orderIndex: firstLevel.orderIndex,
-        targets: firstLevel.targets.map((target) => target.name),
+        scene: {
+          width: firstLevel.imageWidth,
+          height: firstLevel.imageHeight,
+        },
+        targets: [WALDO_NAME],
         foundTargets: [],
       },
     });
