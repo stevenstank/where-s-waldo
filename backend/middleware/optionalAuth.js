@@ -1,13 +1,9 @@
-const jwt = require("jsonwebtoken");
+const { verifyAccessToken } = require("../utils/token");
 
 const optionalAuth = (req, res, next) => {
   const authHeader = req.headers.authorization;
 
   if (!authHeader || !authHeader.startsWith("Bearer ")) {
-    return next();
-  }
-
-  if (!process.env.JWT_SECRET) {
     return next();
   }
 
@@ -18,9 +14,9 @@ const optionalAuth = (req, res, next) => {
   }
 
   try {
-    const payload = jwt.verify(token, process.env.JWT_SECRET);
+    const payload = verifyAccessToken(token);
 
-    if (payload && typeof payload.userId === "string" && payload.userId.length > 0) {
+    if (payload?.type === "access" && typeof payload.userId === "string" && payload.userId.length > 0) {
       req.user = {
         userId: payload.userId,
         username: typeof payload.username === "string" ? payload.username : undefined,

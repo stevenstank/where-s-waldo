@@ -8,7 +8,6 @@ import {
 } from "../services/api";
 
 function Home({ user, onRequireAuth }) {
-  const storedToken = localStorage.getItem("token") || "";
   const isLoggedIn = Boolean(user);
 
   const [gameId, setGameId] = useState(null);
@@ -16,6 +15,8 @@ function Home({ user, onRequireAuth }) {
   const [foundTargets, setFoundTargets] = useState([]);
   const [selectedTarget, setSelectedTarget] = useState("");
   const [isSceneLoading, setIsSceneLoading] = useState(false);
+  const [isStartingGame, setIsStartingGame] = useState(false);
+  const [isLoadingLeaderboard, setIsLoadingLeaderboard] = useState(false);
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const [resultPulse, setResultPulse] = useState(null);
   const [isValidatingClick, setIsValidatingClick] = useState(false);
@@ -25,8 +26,39 @@ function Home({ user, onRequireAuth }) {
   const [errorMessage, setErrorMessage] = useState("");
   const [leaderboardRows, setLeaderboardRows] = useState([]);
   const [leaderboardError, setLeaderboardError] = useState("");
+  const [scoreShareUrl, setScoreShareUrl] = useState("");
+  const [didCopyShareUrl, setDidCopyShareUrl] = useState(false);
 
   const imageRef = useRef(null);
+
+  const playTone = useCallback((frequency, duration) => {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+    if (!AudioContextClass) {
+      return;
+    }
+
+    const context = new AudioContextClass();
+    const oscillator = context.createOscillator();
+    const gainNode = context.createGain();
+
+    oscillator.type = "sine";
+    oscillator.frequency.setValueAtTime(frequency, context.currentTime);
+    gainNode.gain.setValueAtTime(0.08, context.currentTime);
+    gainNode.gain.exponentialRampToValueAtTime(0.0001, context.currentTime + duration);
+
+    oscillator.connect(gainNode);
+    gainNode.connect(context.destination);
+    oscillator.start();
+    oscillator.stop(context.currentTime + duration);
+
+    oscillator.onended = () => {
+      context.close();
+    };
+  }, []);
 
   const remainingTargets = useMemo(() => {
     if (!currentLevel) {
@@ -91,20 +123,26 @@ function Home({ user, onRequireAuth }) {
     setIsSubmittingScore(false);
     setHasSubmittedScore(false);
     setErrorMessage("");
+    setScoreShareUrl("");
+    setDidCopyShareUrl(false);
   };
 
   const loadLeaderboard = useCallback(async () => {
+    setIsLoadingLeaderboard(true);
     try {
       const rows = await getLeaderboard();
-      setLeaderboardRows(rows || []);
+      setLeaderboardRows(rows?.rows || []);
       setLeaderboardError("");
     } catch (error) {
       setLeaderboardError(error.message || "Failed to load leaderboard.");
+    } finally {
+      setIsLoadingLeaderboard(false);
     }
   }, []);
 
   const startNewGame = useCallback(async () => {
     clearRuntimeState();
+    setIsStartingGame(true);
     try {
       const session = await startGame();
       setGameId(session.gameId);
@@ -114,10 +152,12 @@ function Home({ user, onRequireAuth }) {
       setIsSceneLoading(true);
     } catch {
       setErrorMessage("Failed to start game session.");
+    } finally {
+      setIsStartingGame(false);
     }
   }, []);
 
-  const handleImageClick = async (event) => {
+  const handleImageClick = useCallback(async (event) => {
     if (!gameId || !currentLevel) {
       setErrorMessage("Game session is not ready. Please wait...");
       return;
@@ -146,6 +186,7 @@ function Home({ user, onRequireAuth }) {
       });
 
       if (result.success) {
+        playTone(740, 0.14);
         setResultPulse({
           x: point.pulseXPercent,
           y: point.pulseYPercent,
@@ -155,6 +196,7 @@ function Home({ user, onRequireAuth }) {
         setFoundTargets(result.foundTargets || []);
 
         if (result.gameCompleted && typeof result.timeTaken === "number") {
+          playTone(880, 0.2);
           setCompletedTimeTaken(result.timeTaken);
           await loadLeaderboard();
         } else if (result.levelCompleted && result.nextLevel) {
@@ -166,6 +208,7 @@ function Home({ user, onRequireAuth }) {
 
         setErrorMessage("");
       } else {
+        playTone(240, 0.1);
         setResultPulse({
           x: point.pulseXPercent,
           y: point.pulseYPercent,
@@ -183,7 +226,7 @@ function Home({ user, onRequireAuth }) {
     } finally {
       setIsValidatingClick(false);
     }
-  };
+  }, [completedTimeTaken, gameId, getImageRelativePoint, isValidatingClick, loadLeaderboard, playTone, selectedTarget, currentLevel]);
 
   useEffect(() => {
     const fallbackTarget = remainingTargets[0] || "";
@@ -208,10 +251,9 @@ function Home({ user, onRequireAuth }) {
       try {
         await submitScore({
           gameId,
-          timeTaken: completedTimeTaken,
-          token: storedToken || undefined,
         });
         setHasSubmittedScore(true);
+        setScoreShareUrl(`${window.location.origin}/leaderboard?game=${gameId}`);
         await loadLeaderboard();
       } catch (error) {
         setErrorMessage(error.message || "Failed to submit score.");
@@ -221,7 +263,20 @@ function Home({ user, onRequireAuth }) {
     };
 
     submitLoggedInScore();
-  }, [completedTimeTaken, gameId, hasSubmittedScore, isLoggedIn, isSubmittingScore, loadLeaderboard, storedToken]);
+  }, [completedTimeTaken, gameId, hasSubmittedScore, isLoggedIn, isSubmittingScore, loadLeaderboard]);
+
+  const handleCopyShareLink = useCallback(async () => {
+    if (!scoreShareUrl) {
+      return;
+    }
+
+    try {
+      await navigator.clipboard.writeText(scoreShareUrl);
+      setDidCopyShareUrl(true);
+    } catch {
+      setErrorMessage("Could not copy share link.");
+    }
+  }, [scoreShareUrl]);
 
   useEffect(() => {
     const initGame = async () => {
@@ -267,7 +322,7 @@ function Home({ user, onRequireAuth }) {
             🔎 Found: {foundTargets.length}/{currentLevel?.targets?.length || 0}
           </span>
           <button className="button-primary" type="button" onClick={startNewGame}>
-            {gameId ? "Restart Game" : "Start Game"}
+            {isStartingGame ? "Starting..." : gameId ? "Restart Game" : "Start Game"}
           </button>
         </div>
       </section>
@@ -291,6 +346,14 @@ function Home({ user, onRequireAuth }) {
               {isLoggedIn && !hasSubmittedScore ? <p>Submitting score...</p> : null}
 
               {hasSubmittedScore ? <p>Score submitted successfully.</p> : null}
+
+              {hasSubmittedScore && scoreShareUrl ? (
+                <div className="completion-login-note">
+                  <button className="button-secondary" type="button" onClick={handleCopyShareLink}>
+                    {didCopyShareUrl ? "Copied!" : "Copy Share Link"}
+                  </button>
+                </div>
+              ) : null}
             </section>
           ) : null}
 
@@ -347,14 +410,15 @@ function Home({ user, onRequireAuth }) {
 
         <aside className="leaderboard-sidebar card">
           <h3>Top Hunters</h3>
+          {isLoadingLeaderboard ? <p className="empty-state">Loading leaderboard...</p> : null}
           {leaderboardError ? <p className="error-text">{leaderboardError}</p> : null}
-          {leaderboardRows.length === 0 ? <p className="empty-state">No scores yet.</p> : null}
+          {!isLoadingLeaderboard && leaderboardRows.length === 0 ? <p className="empty-state">No scores yet.</p> : null}
 
           {leaderboardRows.length > 0 ? (
             <ol className="mini-leaderboard">
               {leaderboardRows.slice(0, 10).map((entry, index) => (
-                <li key={`${entry.name}-${entry.timeTaken}-${index}`} className="mini-leaderboard__row">
-                  <span className={`rank rank-${Math.min(index + 1, 3)}`}>#{index + 1}</span>
+                <li key={entry.id || `${entry.name}-${entry.timeTaken}-${index}`} className="mini-leaderboard__row">
+                  <span className={`rank rank-${Math.min(index + 1, 3)}`}>#{entry.rank || index + 1}</span>
                   <span className="mini-leaderboard__name">{entry.name}</span>
                   <span className="mini-leaderboard__meta">
                     <span className={`mini-type-pill ${entry.isGuest ? "mini-type-pill-guest" : "mini-type-pill-auth"}`}>

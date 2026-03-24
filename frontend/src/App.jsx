@@ -8,6 +8,7 @@ import {
   getAuthToken,
   getCurrentUser,
   login,
+  logout,
   register,
   setAuthToken,
 } from "./services/api";
@@ -29,12 +30,11 @@ function App() {
 
   useEffect(() => {
     const bootstrapAuth = async () => {
-      const token = getAuthToken();
-      if (!token) {
-        return;
-      }
-
       try {
+        const token = getAuthToken();
+        if (!token) {
+          // getCurrentUser will trigger refresh flow if refresh cookie is still valid.
+        }
         const currentUser = await getCurrentUser();
         setUser(currentUser);
       } catch {
@@ -62,21 +62,30 @@ function App() {
 
   const handleLogin = async ({ username, password }) => {
     const result = await login({ username, password });
-    if (!result?.token) {
+    if (!result?.accessToken) {
       throw new Error("Login failed");
     }
 
-    setAuthToken(result.token);
-    const currentUser = await getCurrentUser();
-    setUser(currentUser);
+    setAuthToken(result.accessToken);
+    setUser(result.user || null);
   };
 
   const handleSignUp = async ({ username, password }) => {
-    await register({ username, password });
-    await handleLogin({ username, password });
+    const result = await register({ username, password });
+    if (!result?.accessToken) {
+      throw new Error("Sign up failed");
+    }
+
+    setAuthToken(result.accessToken);
+    setUser(result.user || null);
   };
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    try {
+      await logout();
+    } catch {
+      // Clear local state even if remote logout fails.
+    }
     setAuthToken("");
     setUser(null);
     navigate("/");

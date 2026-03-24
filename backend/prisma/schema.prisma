@@ -14,6 +14,7 @@ model User {
   password           String
   games              Game[]
   scores             Score[]
+  refreshTokens      RefreshToken[]
 }
 
 model Game {
@@ -75,4 +76,16 @@ model Score {
   gameId    String
   game      Game   @relation(fields: [gameId], references: [id])
   timeTaken Float
+  createdAt DateTime @default(now())
+}
+
+model RefreshToken {
+  id        String   @id @default(uuid())
+  jti       String   @unique
+  tokenHash String
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  revokedAt DateTime?
+  createdAt DateTime @default(now())
 }

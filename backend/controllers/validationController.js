@@ -1,6 +1,35 @@
 const prisma = require("../config/prisma");
 const ApiError = require("../utils/apiError");
 
+const clickTrack = new Map();
+const CLICK_WINDOW_MS = 4000;
+const MAX_CLICKS_PER_WINDOW = 18;
+const MAX_REPEAT_POINTS = 3;
+
+const registerClick = ({ gameId, x, y }) => {
+  const now = Date.now();
+  const state = clickTrack.get(gameId) || {
+    clicks: [],
+    repeatedPointHits: 0,
+  };
+
+  const recentClicks = state.clicks.filter((entry) => now - entry.at <= CLICK_WINDOW_MS);
+  const wasRepeatedPoint = recentClicks.some((entry) => entry.x === x && entry.y === y);
+
+  if (wasRepeatedPoint) {
+    state.repeatedPointHits += 1;
+  }
+
+  recentClicks.push({ at: now, x, y });
+  state.clicks = recentClicks;
+  clickTrack.set(gameId, state);
+
+  return {
+    clickCount: recentClicks.length,
+    repeatedPointHits: state.repeatedPointHits,
+  };
+};
+
 const isInsideBox = (x, y, box, padding = 0) => {
   const left = box.x - padding;
   const right = box.x + box.width + padding;
@@ -20,6 +49,16 @@ const validateCharacter = async (req, res, next) => {
 
     if (!Number.isFinite(x) || !Number.isFinite(y)) {
       throw new ApiError(400, "x and y must be valid numbers");
+    }
+
+    const clickMeta = registerClick({
+      gameId,
+      x,
+      y,
+    });
+
+    if (clickMeta.clickCount > MAX_CLICKS_PER_WINDOW || clickMeta.repeatedPointHits > MAX_REPEAT_POINTS) {
+      throw new ApiError(429, "Too many rapid attempts detected. Slow down.");
     }
 
     const game = await prisma.game.findUnique({
@@ -170,6 +209,7 @@ const validateCharacter = async (req, res, next) => {
       });
 
       const timeTaken = (completedGame.endTime.getTime() - completedGame.startTime.getTime()) / 1000;
+      clickTrack.delete(game.id);
 
       return res.status(200).json({
         success: true,

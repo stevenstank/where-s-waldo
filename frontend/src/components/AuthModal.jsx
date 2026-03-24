@@ -13,12 +13,24 @@ function AuthModal({ mode, isOpen, onClose, onLogin, onSignUp }) {
 
   const isLoginMode = mode === "login";
 
+  const title = isLoginMode ? "Login" : "Create Account";
+
   const handleSubmit = async (event) => {
     event.preventDefault();
     setError("");
 
     if (!username.trim() || !password) {
       setError("Username and password are required.");
+      return;
+    }
+
+    if (username.trim().length < 3) {
+      setError("Username must be at least 3 characters.");
+      return;
+    }
+
+    if (password.length < 6) {
+      setError("Password must be at least 6 characters.");
       return;
     }
 
@@ -42,7 +54,10 @@ function AuthModal({ mode, isOpen, onClose, onLogin, onSignUp }) {
   return (
     <div className="auth-modal-backdrop" onClick={onClose}>
       <div className="auth-modal card" onClick={(event) => event.stopPropagation()}>
-        <h2 className="auth-modal__title">{isLoginMode ? "Login" : "Sign Up"}</h2>
+        <h2 className="auth-modal__title">{title}</h2>
+        <p className="auth-modal__subtitle">
+          {isLoginMode ? "Welcome back, hunter." : "Create your account to save your leaderboard runs."}
+        </p>
 
         <form onSubmit={handleSubmit} className="auth-modal__form">
           <input
@@ -70,6 +85,10 @@ function AuthModal({ mode, isOpen, onClose, onLogin, onSignUp }) {
               {isSubmitting ? "Please wait..." : isLoginMode ? "Login" : "Create account"}
             </button>
           </div>
+
+          <p className="auth-modal__switch-hint">
+            {isLoginMode ? "Need an account? Click Sign Up in the navbar." : "Already have an account? Click Login in the navbar."}
+          </p>
         </form>
       </div>
     </div>

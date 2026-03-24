@@ -1,6 +1,15 @@
 const express = require("express");
 const cors = require("cors");
-const { PORT, DATABASE_URL, JWT_SECRET } = require("./config/env");
+const cookieParser = require("cookie-parser");
+const morgan = require("morgan");
+const crypto = require("crypto");
+const {
+  PORT,
+  DATABASE_URL,
+  JWT_ACCESS_SECRET,
+  JWT_REFRESH_SECRET,
+  CLIENT_ORIGIN,
+} = require("./config/env");
 const healthRoutes = require("./routes/healthRoutes");
 const authRoutes = require("./routes/authRoutes");
 const gameRoutes = require("./routes/gameRoutes");
@@ -12,8 +21,28 @@ const prisma = require("./config/prisma");
 const app = express();
 const HOST = "0.0.0.0";
 
-app.use(cors());
+const corsOrigins = CLIENT_ORIGIN.split(",").map((origin) => origin.trim()).filter(Boolean);
+
+app.use(cors({
+  origin: (origin, callback) => {
+    if (!origin || corsOrigins.includes(origin)) {
+      callback(null, true);
+      return;
+    }
+
+    callback(new Error("CORS origin denied"));
+  },
+  credentials: true,
+}));
 app.use(express.json());
+app.use(cookieParser());
+app.use((req, res, next) => {
+  const requestId = crypto.randomUUID();
+  req.requestId = requestId;
+  res.setHeader("x-request-id", requestId);
+  next();
+});
+app.use(morgan(":method :url :status :response-time ms req-id=:req[x-request-id]"));
 app.get("/", (req, res) => {
   res.json({ status: "ok", message: "API is running" });
 });
@@ -31,8 +60,12 @@ const startServer = async () => {
       throw new Error("DATABASE_URL is not configured");
     }
 
-    if (!JWT_SECRET) {
-      throw new Error("JWT_SECRET is not configured");
+    if (!JWT_ACCESS_SECRET) {
+      throw new Error("JWT_ACCESS_SECRET is not configured");
+    }
+
+    if (!JWT_REFRESH_SECRET) {
+      throw new Error("JWT_REFRESH_SECRET is not configured");
     }
 
     await prisma.$queryRaw`SELECT 1`;
