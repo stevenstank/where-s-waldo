@@ -119,6 +119,19 @@ function App() {
         </Routes>
       </div>
 
+      <footer className="app-footer">
+        <p>
+          made with ❤️ by{" "}
+          <a
+            href="https://github.com/stevenstank"
+            target="_blank"
+            rel="noreferrer"
+          >
+            stevenstank
+          </a>
+        </p>
+      </footer>
+
       <AuthModal
         mode={authMode}
         isOpen={isAuthModalOpen}

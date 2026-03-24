@@ -41,6 +41,7 @@ select {
 .app-main {
   width: min(1080px, calc(100% - 24px));
   margin: 16px auto 20px;
+  flex: 1;
 }
 
 .card {
@@ -101,9 +102,37 @@ h3 {
   color: var(--accent);
 }
 
+.app-footer {
+  width: min(1080px, calc(100% - 24px));
+  margin: 0 auto 16px;
+  padding-top: 4px;
+  color: var(--text-muted);
+  font-size: 0.88rem;
+  text-align: center;
+}
+
+.app-footer p {
+  margin: 0;
+}
+
+.app-footer a {
+  color: var(--accent);
+  text-decoration: none;
+}
+
+.app-footer a:hover,
+.app-footer a:focus-visible {
+  text-decoration: underline;
+}
+
 @media (max-width: 900px) {
   .app-main {
     width: calc(100% - 16px);
     margin-top: 12px;
+  }
+
+  .app-footer {
+    width: calc(100% - 16px);
+    margin-bottom: 12px;
   }
 }
