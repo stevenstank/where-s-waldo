@@ -136,6 +136,13 @@ function Home({ user, onRequireAuth }) {
   }, []);
 
   const loadLeaderboard = useCallback(async () => {
+    if (!isLoggedIn) {
+      setIsLoadingLeaderboard(false);
+      setLeaderboardRows([]);
+      setLeaderboardError("");
+      return;
+    }
+
     setIsLoadingLeaderboard(true);
     try {
       const rows = await getLeaderboard();
@@ -146,7 +153,7 @@ function Home({ user, onRequireAuth }) {
     } finally {
       setIsLoadingLeaderboard(false);
     }
-  }, []);
+  }, [isLoggedIn]);
 
   const startNewGame = useCallback(async () => {
     const runToken = runTokenRef.current + 1;
@@ -494,11 +501,12 @@ function Home({ user, onRequireAuth }) {
 
         <aside className="leaderboard-sidebar card">
           <h3>Top Hunters</h3>
+          {!isLoggedIn ? <p className="empty-state">Login to view leaderboard</p> : null}
           {isLoadingLeaderboard ? <p className="empty-state">Loading leaderboard...</p> : null}
           {leaderboardError ? <p className="error-text">{leaderboardError}</p> : null}
-          {!isLoadingLeaderboard && leaderboardRows.length === 0 ? <p className="empty-state">No scores yet.</p> : null}
+          {isLoggedIn && !isLoadingLeaderboard && leaderboardRows.length === 0 ? <p className="empty-state">No scores yet.</p> : null}
 
-          {leaderboardRows.length > 0 ? (
+          {isLoggedIn && leaderboardRows.length > 0 ? (
             <ol className="mini-leaderboard">
               {leaderboardRows.slice(0, 10).map((entry, index) => (
                 <li key={entry.id || `${entry.name}-${entry.timeTaken}-${index}`} className="mini-leaderboard__row">
