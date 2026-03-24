@@ -320,15 +320,11 @@ function Home({ user, onRequireAuth }) {
 
         <div className="hud__right">
           {gameState === "playing" ? (
-            <>
-              <span className="badge">⏱ Timer: {elapsedSeconds}s</span>
-              <span className="badge">
-                🧭 Level: {currentLevel ? `${currentLevel.orderIndex}` : "-"}
-              </span>
-              <span className="badge">
-                🔎 Found: {foundTargets.length}/{currentLevel?.targets?.length || 0}
-              </span>
-            </>
+            <div className="hud-stats">
+              <span className="badge">Timer: {elapsedSeconds}s</span>
+              <span className="badge">Level: {currentLevel ? `${currentLevel.orderIndex}` : "-"}</span>
+              <span className="badge">Found: {foundTargets.length}/{currentLevel?.targets?.length || 0}</span>
+            </div>
           ) : null}
 
           {gameState === "loading" ? <span className="badge">Starting...</span> : null}

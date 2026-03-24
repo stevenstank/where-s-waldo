@@ -1,9 +1,10 @@
 .leaderboard-page {
-  padding: 18px;
+  padding: 20px;
 }
 
 .leaderboard-page h1 {
-  margin: 0 0 14px;
+  margin: 0 0 16px;
+  font-size: clamp(28px, 3vw, 32px);
 }
 
 .leaderboard-table-wrap {
@@ -18,58 +19,60 @@
 .leaderboard-table th,
 .leaderboard-table td {
   text-align: left;
-  padding: 12px 10px;
+  padding: 12px;
   border-bottom: 1px solid var(--line);
+  font-size: 18px;
 }
 
 .leaderboard-table th {
   color: var(--text-muted);
-  font-weight: 600;
+  font-weight: 700;
   letter-spacing: 0.02em;
 }
 
 .rank-row-1 {
-  background: linear-gradient(90deg, rgba(255, 200, 90, 0.22), transparent);
+  background: #151515;
 }
 
 .rank-row-2 {
-  background: linear-gradient(90deg, rgba(201, 214, 242, 0.2), transparent);
+  background: #151515;
 }
 
 .rank-row-3 {
-  background: linear-gradient(90deg, rgba(244, 172, 111, 0.2), transparent);
+  background: #151515;
 }
 
 .type-pill {
   display: inline-block;
-  border-radius: 999px;
-  font-size: 0.82rem;
+  border-radius: 6px;
+  font-size: 15px;
   font-weight: 700;
-  padding: 3px 9px;
+  padding: 4px 9px;
+  border: 1px solid var(--line);
+  background: #1a1a1a;
+  color: var(--text);
 }
 
 .type-pill-guest {
-  background: rgba(255, 93, 122, 0.17);
-  color: #ff95a9;
-  border: 1px solid rgba(255, 93, 122, 0.35);
+  background: #1a1a1a;
 }
 
 .type-pill-auth {
-  background: rgba(65, 212, 168, 0.16);
-  color: #8ef5d8;
-  border: 1px solid rgba(65, 212, 168, 0.35);
+  background: #1a1a1a;
 }
 
 .leaderboard-empty {
   color: var(--text-muted);
+  font-size: 18px;
 }
 
 .leaderboard-error {
   color: var(--danger);
+  font-size: 18px;
 }
 
 .leaderboard-pagination {
-  margin-top: 14px;
+  margin-top: 16px;
   display: flex;
   align-items: center;
   justify-content: flex-end;
