@@ -1,64 +1,96 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import "./Home.css";
 import {
-  finishGame,
-  getGameSceneUrl,
   getLeaderboard,
   startGame,
   submitScore,
   validateClick,
 } from "../services/api";
 
-const MIN_SCALE = 1;
-const MAX_SCALE = 4;
-const ZOOM_STEP = 0.2;
-
 function Home({ user, onRequireAuth }) {
   const storedToken = localStorage.getItem("token") || "";
   const isLoggedIn = Boolean(user);
 
   const [gameId, setGameId] = useState(null);
-  const [sceneUrl, setSceneUrl] = useState("");
+  const [currentLevel, setCurrentLevel] = useState(null);
+  const [foundTargets, setFoundTargets] = useState([]);
+  const [selectedTarget, setSelectedTarget] = useState("");
+  const [isSceneLoading, setIsSceneLoading] = useState(false);
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
-  const [hasFoundWaldo, setHasFoundWaldo] = useState(false);
   const [resultPulse, setResultPulse] = useState(null);
   const [isValidatingClick, setIsValidatingClick] = useState(false);
   const [completedTimeTaken, setCompletedTimeTaken] = useState(null);
-  const [isCompletingGame, setIsCompletingGame] = useState(false);
   const [isSubmittingScore, setIsSubmittingScore] = useState(false);
   const [hasSubmittedScore, setHasSubmittedScore] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
   const [leaderboardRows, setLeaderboardRows] = useState([]);
   const [leaderboardError, setLeaderboardError] = useState("");
-  const [scale, setScale] = useState(1);
-  const [translate, setTranslate] = useState({ x: 0, y: 0 });
-  const [isDragging, setIsDragging] = useState(false);
-  const [dragOrigin, setDragOrigin] = useState({ x: 0, y: 0 });
 
   const imageRef = useRef(null);
 
-  const canPan = scale > 1;
-  const imageCursor = useMemo(() => {
-    if (isDragging) {
-      return "grabbing";
+  const remainingTargets = useMemo(() => {
+    if (!currentLevel) {
+      return [];
     }
 
-    return canPan ? "grab" : "crosshair";
-  }, [canPan, isDragging]);
+    return currentLevel.targets.filter((targetName) => !foundTargets.includes(targetName));
+  }, [currentLevel, foundTargets]);
 
-  const clampScale = (nextScale) => Math.max(MIN_SCALE, Math.min(MAX_SCALE, nextScale));
+  const getImageRelativePoint = useCallback((event) => {
+    const imageElement = imageRef.current;
+
+    if (!imageElement || !currentLevel) {
+      return null;
+    }
+
+    const rect = imageElement.getBoundingClientRect();
+    const naturalWidth = currentLevel.image.width;
+    const naturalHeight = currentLevel.image.height;
+
+    if (!naturalWidth || !naturalHeight || rect.width === 0 || rect.height === 0) {
+      return null;
+    }
+
+    const containScale = Math.min(rect.width / naturalWidth, rect.height / naturalHeight);
+    const renderedWidth = naturalWidth * containScale;
+    const renderedHeight = naturalHeight * containScale;
+    const offsetX = (rect.width - renderedWidth) / 2;
+    const offsetY = (rect.height - renderedHeight) / 2;
+
+    const localX = event.clientX - rect.left;
+    const localY = event.clientY - rect.top;
+
+    if (
+      localX < offsetX
+      || localX > offsetX + renderedWidth
+      || localY < offsetY
+      || localY > offsetY + renderedHeight
+    ) {
+      return null;
+    }
+
+    const imageX = Math.round((localX - offsetX) * (naturalWidth / renderedWidth));
+    const imageY = Math.round((localY - offsetY) * (naturalHeight / renderedHeight));
+
+    return {
+      imageX,
+      imageY,
+      pulseXPercent: (localX / rect.width) * 100,
+      pulseYPercent: (localY / rect.height) * 100,
+    };
+  }, [currentLevel]);
 
   const clearRuntimeState = () => {
     setElapsedSeconds(0);
-    setHasFoundWaldo(false);
+    setCurrentLevel(null);
+    setFoundTargets([]);
+    setSelectedTarget("");
+    setIsSceneLoading(false);
     setResultPulse(null);
     setCompletedTimeTaken(null);
-    setIsCompletingGame(false);
     setIsSubmittingScore(false);
     setHasSubmittedScore(false);
     setErrorMessage("");
-    setScale(1);
-    setTranslate({ x: 0, y: 0 });
   };
 
   const loadLeaderboard = useCallback(async () => {
@@ -76,80 +108,31 @@ function Home({ user, onRequireAuth }) {
     try {
       const session = await startGame();
       setGameId(session.gameId);
-      setSceneUrl(getGameSceneUrl(session.gameId));
+      setCurrentLevel(session.currentLevel || null);
+      setFoundTargets(session.currentLevel?.foundTargets || []);
+      setSelectedTarget(session.currentLevel?.targets?.[0] || "");
+      setIsSceneLoading(true);
     } catch {
       setErrorMessage("Failed to start game session.");
     }
   }, []);
 
-  const handleImageMouseDown = (event) => {
-    if (!canPan) {
-      return;
-    }
-
-    setIsDragging(true);
-    setDragOrigin({
-      x: event.clientX - translate.x,
-      y: event.clientY - translate.y,
-    });
-  };
-
-  const handleImageMouseMove = (event) => {
-    if (!isDragging || !canPan) {
-      return;
-    }
-
-    setTranslate({
-      x: event.clientX - dragOrigin.x,
-      y: event.clientY - dragOrigin.y,
-    });
-  };
-
-  const handleImageMouseUp = () => {
-    setIsDragging(false);
-  };
-
-  const handleWheelZoom = (event) => {
-    event.preventDefault();
-    const direction = event.deltaY > 0 ? -1 : 1;
-    const nextScale = clampScale(scale + direction * ZOOM_STEP);
-
-    if (nextScale === MIN_SCALE) {
-      setTranslate({ x: 0, y: 0 });
-    }
-
-    setScale(nextScale);
-  };
-
   const handleImageClick = async (event) => {
-    if (!gameId) {
+    if (!gameId || !currentLevel) {
       setErrorMessage("Game session is not ready. Please wait...");
       return;
     }
 
-    if (hasFoundWaldo || completedTimeTaken !== null || isValidatingClick) {
+    if (completedTimeTaken !== null || isValidatingClick || !selectedTarget) {
       return;
     }
 
-    if (isDragging) {
+    const point = getImageRelativePoint(event);
+
+    if (!point) {
       return;
     }
 
-    if (!imageRef.current) {
-      return;
-    }
-
-    const rect = event.currentTarget.getBoundingClientRect();
-    const clickX = event.clientX - rect.left;
-    const clickY = event.clientY - rect.top;
-
-    const x = Number(((clickX / rect.width) * 100).toFixed(2));
-    const y = Number(((clickY / rect.height) * 100).toFixed(2));
-
-    const nextPosition = {
-      x: Math.max(0, Math.min(100, x)),
-      y: Math.max(0, Math.min(100, y)),
-    };
     setErrorMessage("");
 
     setIsValidatingClick(true);
@@ -157,27 +140,43 @@ function Home({ user, onRequireAuth }) {
     try {
       const result = await validateClick({
         gameId,
-        x: nextPosition.x,
-        y: nextPosition.y,
+        targetName: selectedTarget,
+        x: point.imageX,
+        y: point.imageY,
       });
 
       if (result.success) {
-        setHasFoundWaldo(true);
         setResultPulse({
-          x: nextPosition.x,
-          y: nextPosition.y,
+          x: point.pulseXPercent,
+          y: point.pulseYPercent,
           status: "correct",
           key: Date.now(),
         });
+        setFoundTargets(result.foundTargets || []);
+
+        if (result.gameCompleted && typeof result.timeTaken === "number") {
+          setCompletedTimeTaken(result.timeTaken);
+          await loadLeaderboard();
+        } else if (result.levelCompleted && result.nextLevel) {
+          setCurrentLevel(result.nextLevel);
+          setFoundTargets(result.nextLevel.foundTargets || []);
+          setSelectedTarget(result.nextLevel.targets?.[0] || "");
+          setIsSceneLoading(true);
+        }
+
         setErrorMessage("");
       } else {
         setResultPulse({
-          x: nextPosition.x,
-          y: nextPosition.y,
+          x: point.pulseXPercent,
+          y: point.pulseYPercent,
           status: "miss",
           key: Date.now(),
         });
-        setErrorMessage("Not a match. Try another spot.");
+        if (result.gameCompleted) {
+          setErrorMessage("This game has already been completed.");
+        } else {
+          setErrorMessage("Not a match. Try another spot.");
+        }
       }
     } catch (error) {
       setErrorMessage(error.message || "Validation failed");
@@ -187,24 +186,11 @@ function Home({ user, onRequireAuth }) {
   };
 
   useEffect(() => {
-    const finishCurrentGame = async () => {
-      if (!gameId || !hasFoundWaldo || isCompletingGame) {
-        return;
-      }
-
-      setIsCompletingGame(true);
-      try {
-        const result = await finishGame(gameId);
-        setCompletedTimeTaken(result.timeTaken);
-      } catch (error) {
-        setErrorMessage(error.message || "Failed to finish game.");
-      } finally {
-        setIsCompletingGame(false);
-      }
-    };
-
-    finishCurrentGame();
-  }, [gameId, hasFoundWaldo, isCompletingGame]);
+    const fallbackTarget = remainingTargets[0] || "";
+    if (!selectedTarget || !remainingTargets.includes(selectedTarget)) {
+      setSelectedTarget(fallbackTarget);
+    }
+  }, [remainingTargets, selectedTarget]);
 
   useEffect(() => {
     if (!isLoggedIn || completedTimeTaken === null || hasSubmittedScore) {
@@ -244,9 +230,6 @@ function Home({ user, onRequireAuth }) {
     };
 
     initGame();
-    return () => {
-      setIsDragging(false);
-    };
   }, [loadLeaderboard, startNewGame]);
 
   useEffect(() => {
@@ -271,13 +254,18 @@ function Home({ user, onRequireAuth }) {
         <div className="hud__left">
           <h1>Where is Waldo</h1>
           <p className="game-subtitle">
-            Find Waldo in the chaos. Zoom with your wheel, pan by dragging when zoomed.
+            Find each character in the current level. Click inside the scene to validate your pick.
           </p>
         </div>
 
         <div className="hud__right">
           <span className="badge">⏱ Timer: {elapsedSeconds}s</span>
-          <span className="badge">🔎 Found: {hasFoundWaldo ? "1/1" : "0/1"}</span>
+          <span className="badge">
+            🧭 Level: {currentLevel ? `${currentLevel.orderIndex}` : "-"}
+          </span>
+          <span className="badge">
+            🔎 Found: {foundTargets.length}/{currentLevel?.targets?.length || 0}
+          </span>
           <button className="button-primary" type="button" onClick={startNewGame}>
             {gameId ? "Restart Game" : "Start Game"}
           </button>
@@ -306,26 +294,42 @@ function Home({ user, onRequireAuth }) {
             </section>
           ) : null}
 
-          <section
-            className="scene-frame"
-            onWheel={handleWheelZoom}
-          >
+          <section className="level-toolbar">
+            <strong>{currentLevel?.name || "Loading level..."}</strong>
+            <div className="target-selector-wrap">
+              <label htmlFor="target-selector">Target:</label>
+              <select
+                id="target-selector"
+                className="target-selector"
+                value={selectedTarget}
+                onChange={(event) => setSelectedTarget(event.target.value)}
+                disabled={remainingTargets.length === 0 || completedTimeTaken !== null}
+              >
+                {remainingTargets.map((targetName) => (
+                  <option key={targetName} value={targetName}>
+                    {targetName}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </section>
+
+          <section className="scene-frame">
             <img
               ref={imageRef}
-              src={sceneUrl}
+              src={currentLevel?.image?.url || ""}
               alt="Where is Waldo game"
+              loading="lazy"
+              decoding="async"
+              fetchPriority="auto"
+              onLoad={() => setIsSceneLoading(false)}
               onClick={handleImageClick}
-              onMouseDown={handleImageMouseDown}
-              onMouseMove={handleImageMouseMove}
-              onMouseUp={handleImageMouseUp}
-              onMouseLeave={handleImageMouseUp}
               draggable={false}
               className="scene-image"
-              style={{
-                cursor: imageCursor,
-                transform: `translate(${translate.x}px, ${translate.y}px) scale(${scale})`,
-              }}
+              style={{ cursor: isValidatingClick ? "progress" : "crosshair" }}
             />
+
+            {isSceneLoading ? <div className="scene-loading">Loading high-res level...</div> : null}
 
             {resultPulse ? (
               <div

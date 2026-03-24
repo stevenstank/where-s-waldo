@@ -17,24 +17,54 @@ model User {
 }
 
 model Game {
-  id        String   @id @default(uuid())
-  userId    String?
-  user      User?    @relation(fields: [userId], references: [id])
-  waldoX    Float   @default(50)
-  waldoY    Float   @default(50)
-  waldoTolerance Float @default(2.2)
-  startTime DateTime
-  endTime   DateTime?
-  completed Boolean  @default(false)
-  scores    Score[]
+  id                String           @id @default(uuid())
+  userId            String?
+  user              User?            @relation(fields: [userId], references: [id])
+  currentLevelOrder Int              @default(1)
+  startTime         DateTime
+  endTime           DateTime?
+  completed         Boolean          @default(false)
+  scores            Score[]
+  foundTargets      GameFoundTarget[]
 }
 
-model Character {
-  id        String @id @default(uuid())
-  name      String @unique
-  x         Float
-  y         Float
-  tolerance Float
+model Level {
+  id          String   @id @default(uuid())
+  slug        String   @unique
+  name        String
+  imageUrl    String
+  imageWidth  Int
+  imageHeight Int
+  orderIndex  Int      @unique
+  targets     Target[]
+  createdAt   DateTime @default(now())
+}
+
+model Target {
+  id      String @id @default(uuid())
+  levelId String
+  level   Level  @relation(fields: [levelId], references: [id], onDelete: Cascade)
+  name    String
+  x       Int
+  y       Int
+  width   Int
+  height  Int
+
+  foundInGames GameFoundTarget[]
+
+  @@unique([levelId, name])
+}
+
+model GameFoundTarget {
+  id       String   @id @default(uuid())
+  gameId   String
+  targetId String
+  foundAt  DateTime @default(now())
+
+  game   Game   @relation(fields: [gameId], references: [id], onDelete: Cascade)
+  target Target @relation(fields: [targetId], references: [id], onDelete: Cascade)
+
+  @@unique([gameId, targetId])
 }
 
 model Score {
