@@ -23,7 +23,7 @@ const HOST = "0.0.0.0";
 const allowedOrigins = [
   "http://localhost:5173",
   "https://where-s-waldo-roan.vercel.app",
-  "https://where-s-waldo-git-main-stevenstank-projects.vercel.app",
+  "https://where-s-waldo-git-main-stevenstanks-projects.vercel.app",
 ];
 
 app.use(cors({
@@ -45,7 +45,11 @@ app.use(cors({
 
 // handle preflight explicitly
 app.options(/.*/, cors({
-  origin: allowedOrigins,
+  origin: (origin, callback) => {
+    if (!origin) return callback(null, true);
+    if (allowedOrigins.includes(origin)) return callback(null, true);
+    return callback(null, false);
+  },
   credentials: true,
 }));
 app.use(express.json());
