@@ -20,31 +20,34 @@ const prisma = require("./config/prisma");
 const app = express();
 const HOST = "0.0.0.0";
 
-const allowedOrigins = new Set([
+const allowedOrigins = [
   "http://localhost:5173",
   "https://where-s-waldo-roan.vercel.app",
   "https://where-s-waldo-git-main-stevenstank-projects.vercel.app",
-]);
+];
 
-const corsOptions = {
+app.use(cors({
   origin: (origin, callback) => {
-    console.log(`[CORS] Incoming origin: ${origin || "no-origin"}`);
+    console.log("[CORS] Origin:", origin);
 
-    if (!origin || allowedOrigins.has(origin)) {
-      callback(null, true);
-      return;
+    // allow requests with no origin (mobile apps, curl, etc.)
+    if (!origin) return callback(null, true);
+
+    if (allowedOrigins.includes(origin)) {
+      return callback(null, true);
     }
 
-    callback(new Error("CORS origin denied"));
+    // IMPORTANT: do NOT throw error
+    return callback(null, false);
   },
   credentials: true,
-  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-  allowedHeaders: ["Content-Type", "Authorization"],
-  optionsSuccessStatus: 204,
-};
+}));
 
-app.use(cors(corsOptions));
-app.options(/.*/, cors(corsOptions));
+// handle preflight explicitly
+app.options("*", cors({
+  origin: allowedOrigins,
+  credentials: true,
+}));
 app.use(express.json());
 app.use(cookieParser());
 app.use((req, res, next) => {
