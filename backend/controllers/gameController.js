@@ -52,7 +52,10 @@ const startGame = async (req, res, next) => {
     });
 
     if (!firstLevel) {
-      throw new ApiError(500, "No levels configured");
+      return res.status(503).json({
+        message: "No levels configured. Run the seed script to initialize game data.",
+        code: "NO_LEVELS_CONFIGURED",
+      });
     }
 
     const game = await prisma.game.create({

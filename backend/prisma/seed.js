@@ -46,57 +46,61 @@ const levels = [
   },
 ];
 
-const seedLevels = async () => {
-  for (const level of levels) {
-    const upsertedLevel = await prisma.level.upsert({
-      where: { slug: level.slug },
-      update: {
-        name: level.name,
-        imageUrl: level.imageUrl,
-        imageWidth: level.imageWidth,
-        imageHeight: level.imageHeight,
-        orderIndex: level.orderIndex,
-      },
-      create: {
-        slug: level.slug,
-        name: level.name,
-        imageUrl: level.imageUrl,
-        imageWidth: level.imageWidth,
-        imageHeight: level.imageHeight,
-        orderIndex: level.orderIndex,
-      },
-    });
-
-    for (const target of level.targets) {
-      await prisma.target.upsert({
-        where: {
-          levelId_name: {
-            levelId: upsertedLevel.id,
-            name: target.name,
-          },
-        },
+const seed = async () => {
+  await prisma.$transaction(async (tx) => {
+    for (const level of levels) {
+      const upsertedLevel = await tx.level.upsert({
+        where: { slug: level.slug },
         update: {
-          x: target.x,
-          y: target.y,
-          width: target.width,
-          height: target.height,
+          name: level.name,
+          imageUrl: level.imageUrl,
+          imageWidth: level.imageWidth,
+          imageHeight: level.imageHeight,
+          orderIndex: level.orderIndex,
         },
         create: {
-          levelId: upsertedLevel.id,
-          name: target.name,
-          x: target.x,
-          y: target.y,
-          width: target.width,
-          height: target.height,
+          slug: level.slug,
+          name: level.name,
+          imageUrl: level.imageUrl,
+          imageWidth: level.imageWidth,
+          imageHeight: level.imageHeight,
+          orderIndex: level.orderIndex,
         },
       });
-    }
-  }
 
-  console.log("Level seed complete");
+      for (const target of level.targets) {
+        await tx.target.upsert({
+          where: {
+            levelId_name: {
+              levelId: upsertedLevel.id,
+              name: target.name,
+            },
+          },
+          update: {
+            x: target.x,
+            y: target.y,
+            width: target.width,
+            height: target.height,
+          },
+          create: {
+            levelId: upsertedLevel.id,
+            name: target.name,
+            x: target.x,
+            y: target.y,
+            width: target.width,
+            height: target.height,
+          },
+        });
+      }
+    }
+  });
+
+  const levelCount = await prisma.level.count();
+  const targetCount = await prisma.target.count();
+  console.log(`Seed complete: ${levelCount} levels, ${targetCount} targets`);
 };
 
-seedLevels()
+seed()
   .catch((error) => {
     console.error("Seed failed", error);
     process.exit(1);
