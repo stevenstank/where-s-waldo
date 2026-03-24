@@ -8,7 +8,6 @@ const {
   DATABASE_URL,
   JWT_ACCESS_SECRET,
   JWT_REFRESH_SECRET,
-  CLIENT_ORIGIN,
 } = require("./config/env");
 const healthRoutes = require("./routes/healthRoutes");
 const authRoutes = require("./routes/authRoutes");
@@ -21,36 +20,18 @@ const prisma = require("./config/prisma");
 const app = express();
 const HOST = "0.0.0.0";
 
-const corsOrigins = CLIENT_ORIGIN.split(",").map((origin) => origin.trim()).filter(Boolean);
-const escapeRegex = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-const corsMatchers = corsOrigins.map((origin) => {
-  if (origin.includes("*")) {
-    const expression = `^${escapeRegex(origin).replace(/\\\*/g, ".*")}$`;
-    return new RegExp(expression);
-  }
-
-  return origin;
-});
-
-const isAllowedOrigin = (origin) => corsMatchers.some((matcher) => {
-  if (typeof matcher === "string") {
-    return matcher === origin;
-  }
-
-  return matcher.test(origin);
-});
-
-app.use(cors({
-  origin: (origin, callback) => {
-    if (!origin || isAllowedOrigin(origin)) {
-      callback(null, true);
-      return;
-    }
-
-    callback(new Error("CORS origin denied"));
-  },
+const corsOptions = {
+  origin: [
+    "http://localhost:5173",
+    "https://where-s-waldo-roan.vercel.app",
+  ],
   credentials: true,
-}));
+  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization"],
+};
+
+app.use(cors(corsOptions));
+app.options(/.*/, cors(corsOptions));
 app.use(express.json());
 app.use(cookieParser());
 app.use((req, res, next) => {
