@@ -1,10 +1,10 @@
 .leaderboard-page {
-  padding: 20px;
+  padding: 14px;
 }
 
 .leaderboard-page h1 {
-  margin: 0 0 16px;
-  font-size: clamp(28px, 3vw, 32px);
+  margin: 0 0 12px;
+  font-size: clamp(1.4rem, 3vw, 1.8rem);
 }
 
 .leaderboard-table-wrap {
@@ -19,9 +19,9 @@
 .leaderboard-table th,
 .leaderboard-table td {
   text-align: left;
-  padding: 12px;
+  padding: 9px 10px;
   border-bottom: 1px solid var(--line);
-  font-size: 18px;
+  font-size: 0.92rem;
 }
 
 .leaderboard-table th {
@@ -45,9 +45,9 @@
 .type-pill {
   display: inline-block;
   border-radius: 6px;
-  font-size: 15px;
+  font-size: 0.78rem;
   font-weight: 700;
-  padding: 4px 9px;
+  padding: 3px 7px;
   border: 1px solid var(--line);
   background: #1a1a1a;
   color: var(--text);
@@ -63,18 +63,30 @@
 
 .leaderboard-empty {
   color: var(--text-muted);
-  font-size: 18px;
+  font-size: 0.92rem;
 }
 
 .leaderboard-error {
   color: var(--danger);
-  font-size: 18px;
+  font-size: 0.92rem;
 }
 
 .leaderboard-pagination {
-  margin-top: 16px;
+  margin-top: 12px;
   display: flex;
   align-items: center;
   justify-content: flex-end;
-  gap: 10px;
+  gap: 8px;
+}
+
+@media (max-width: 640px) {
+  .leaderboard-page {
+    padding: 12px;
+  }
+
+  .leaderboard-table th,
+  .leaderboard-table td {
+    padding: 8px;
+    font-size: 0.86rem;
+  }
 }

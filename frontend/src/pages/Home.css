@@ -1,71 +1,73 @@
 .home-page {
   display: flex;
   flex-direction: column;
-  gap: 16px;
-  font-size: 26px;
+  gap: 10px;
+  font-size: 16px;
 }
 
 .hud {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
-  gap: 18px;
-  padding: 20px;
+  gap: 12px;
+  padding: 14px;
 }
 
 .hud h1 {
   margin: 0;
-  font-size: clamp(44px, 5vw, 56px);
+  font-size: clamp(28px, 4vw, 38px);
   line-height: 1.2;
 }
 
 .game-subtitle {
-  margin: 8px 0 0;
+  margin: 4px 0 0;
   color: var(--text-muted);
-  font-size: 24px;
-  max-width: 640px;
+  font-size: 0.95rem;
+  max-width: 520px;
 }
 
 .hud__right {
   display: flex;
-  align-items: flex-end;
-  gap: 12px;
+  align-items: flex-start;
+  gap: 8px;
   flex-wrap: wrap;
   justify-content: flex-end;
 }
 
 .hud-stats {
   display: flex;
-  gap: 10px;
+  gap: 8px;
   flex-wrap: wrap;
   justify-content: flex-end;
 }
 
 .game-layout {
   display: flex;
-  gap: 16px;
+  gap: 10px;
   align-items: flex-start;
 }
 
 .game-main {
   flex: 1;
-  padding: 20px;
+  padding: 14px;
+  min-width: 0;
 }
 
 .level-toolbar {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
-  margin-bottom: 14px;
+  gap: 8px;
+  margin-bottom: 10px;
   color: var(--text);
-  font-size: 30px;
+  font-size: 1.02rem;
 }
 
 .target-selector-wrap {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
+  font-size: 0.92rem;
 }
 
 .target-selector {
@@ -73,43 +75,44 @@
   color: var(--text);
   border: 1px solid var(--line);
   border-radius: 6px;
-  padding: 10px 12px;
-  font-size: 26px;
+  padding: 7px 10px;
+  font-size: 0.9rem;
 }
 
 .completion-card {
-  margin-bottom: 14px;
-  padding: 16px;
+  margin-bottom: 10px;
+  padding: 12px;
   border-radius: 8px;
   border: 1px solid var(--line);
   background: #141414;
 }
 
 .completion-card h2 {
-  margin: 0 0 8px;
-  font-size: 36px;
+  margin: 0 0 6px;
+  font-size: 1.35rem;
 }
 
 .completion-card p {
-  font-size: 26px;
+  font-size: 0.95rem;
 }
 
 .completion-login-note {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
   flex-wrap: wrap;
 }
 
 .completion-login-note p {
   margin: 0;
-  font-size: 26px;
+  font-size: 0.95rem;
 }
 
 .scene-frame {
   position: relative;
   width: 100%;
-  min-height: 500px;
+  aspect-ratio: 3 / 2;
+  min-height: 0;
   border-radius: 8px;
   overflow: hidden;
   border: 1px solid var(--line);
@@ -208,11 +211,11 @@
 
 .scene-loading {
   position: absolute;
-  left: 12px;
-  top: 12px;
-  padding: 8px 10px;
+  left: 10px;
+  top: 10px;
+  padding: 6px 8px;
   border-radius: 6px;
-  font-size: 26px;
+  font-size: 0.82rem;
   border: 1px solid var(--line);
   background: #151515;
   color: var(--text-muted);
@@ -239,18 +242,20 @@
 
 .success-text {
   color: #4adf86;
-  margin-top: 12px;
-  font-size: 26px;
+  margin-top: 8px;
+  font-size: 0.95rem;
 }
 
 .leaderboard-sidebar {
-  width: 320px;
-  padding: 18px;
+  width: 280px;
+  max-height: min(68vh, 620px);
+  padding: 14px;
+  overflow: auto;
 }
 
 .leaderboard-sidebar h3 {
-  margin: 0 0 12px;
-  font-size: 36px;
+  margin: 0 0 10px;
+  font-size: 1.2rem;
 }
 
 .mini-leaderboard {
@@ -258,43 +263,44 @@
   padding: 0;
   list-style: none;
   display: grid;
-  gap: 8px;
+  gap: 6px;
 }
 
 .mini-leaderboard__row {
   border: 1px solid var(--line);
   background: #151515;
   border-radius: 6px;
-  padding: 10px;
+  padding: 8px;
   display: grid;
-  gap: 6px;
+  gap: 4px;
 }
 
 .rank {
   font-weight: 700;
   color: var(--accent);
-  font-size: 26px;
+  font-size: 0.84rem;
 }
 
 .mini-leaderboard__name {
   font-weight: 700;
-  font-size: 28px;
+  font-size: 0.96rem;
 }
 
 .mini-leaderboard__meta {
   color: var(--text-muted);
-  font-size: 26px;
+  font-size: 0.84rem;
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
+  flex-wrap: wrap;
 }
 
 .mini-type-pill {
   display: inline-block;
   border-radius: 6px;
-  font-size: 26px;
+  font-size: 0.78rem;
   font-weight: 700;
-  padding: 4px 8px;
+  padding: 3px 7px;
   border: 1px solid var(--line);
   color: var(--text);
   background: #1a1a1a;
@@ -310,36 +316,42 @@
 
 .error-text {
   color: var(--danger);
-  margin-top: 12px;
-  font-size: 26px;
+  margin-top: 8px;
+  font-size: 0.95rem;
 }
 
 .empty-state {
   color: var(--text-muted);
-  font-size: 26px;
+  font-size: 0.9rem;
 }
 
 .home-page .badge {
-  font-size: 28px;
-  padding: 10px 14px;
+  font-size: 0.82rem;
+  padding: 5px 9px;
 }
 
 .home-page .button-primary,
 .home-page .button-secondary {
-  font-size: 28px;
-  padding: 12px 18px;
+  font-size: 0.9rem;
+  padding: 7px 11px;
+}
+
+.hud__right .button-secondary {
+  min-height: 34px;
+  padding-inline: 10px;
 }
 
 @media (max-width: 768px) {
   .hud {
     flex-direction: column;
     align-items: flex-start;
-    padding: 16px;
+    padding: 12px;
   }
 
   .hud__right {
     justify-content: flex-start;
     align-items: flex-start;
+    width: 100%;
   }
 
   .game-layout {
@@ -347,7 +359,7 @@
   }
 
   .scene-frame {
-    min-height: 340px;
+    aspect-ratio: 3 / 2;
   }
 
   .level-toolbar {
@@ -357,6 +369,48 @@
 
   .leaderboard-sidebar {
     width: 100%;
-    padding: 16px;
+    max-height: 280px;
+    padding: 12px;
+  }
+
+  .mini-leaderboard__row {
+    padding: 7px;
+  }
+
+  .mini-leaderboard__meta {
+    gap: 4px;
+  }
+}
+
+@media (max-width: 520px) {
+  .home-page {
+    gap: 8px;
+  }
+
+  .hud h1 {
+    font-size: 1.65rem;
+  }
+
+  .game-subtitle {
+    font-size: 0.88rem;
+  }
+
+  .game-main {
+    padding: 12px;
+  }
+
+  .completion-card {
+    padding: 10px;
+  }
+
+  .scene-loading {
+    left: 8px;
+    top: 8px;
+  }
+
+  .home-page .badge,
+  .home-page .button-primary,
+  .home-page .button-secondary {
+    width: auto;
   }
 }

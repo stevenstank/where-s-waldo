@@ -22,7 +22,7 @@
   <circle cx="904" cy="415" r="13" fill="#f0c796"/>
   <rect x="893" y="403" width="22" height="6" fill="#d22"/>
 
-  <text x="40" y="90" font-family="Verdana, sans-serif" font-size="48" fill="#123">
+  <text x="40" y="90" font-size="48" fill="#123">
     Where is Waldo?
   </text>
 </svg>

@@ -77,7 +77,7 @@ function Home({ user, onRequireAuth }) {
     const generated = [];
 
     for (let index = 0; index < count; index += 1) {
-      const size = Math.floor(Math.random() * 31) + 10;
+      const size = Math.floor(Math.random() * 23) + 8;
       const x = Math.floor(Math.random() * (SCENE_WIDTH - size));
       const y = Math.floor(Math.random() * (SCENE_HEIGHT - size));
       const red = Math.floor(Math.random() * 200) + 30;
