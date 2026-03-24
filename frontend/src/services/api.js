@@ -1,5 +1,12 @@
-const BASE_URL = (import.meta.env.VITE_API_URL || "").replace(/\/+$/, "");
+const RAW_API_URL = (import.meta.env.VITE_API_URL || "").trim();
+const BASE_URL = RAW_API_URL.replace(/\/+$/, "");
 const TOKEN_KEY = "accessToken";
+
+if (import.meta.env.PROD && !BASE_URL) {
+  console.error("VITE_API_URL is not set in production. API calls may fail.");
+}
+
+const toApiUrl = (path) => `${BASE_URL}${path}`;
 
 const getStoredToken = () => localStorage.getItem(TOKEN_KEY) || "";
 
@@ -25,15 +32,22 @@ const request = async (url, options = {}) => {
 
   const { skipAuthRefresh = false, ...fetchOptions } = options;
 
-  const response = await fetch(url, {
-    credentials: "include",
-    headers: {
-      "Content-Type": "application/json",
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      ...(fetchOptions.headers || {}),
-    },
-    ...fetchOptions,
-  });
+  let response;
+
+  try {
+    response = await fetch(url, {
+      credentials: "include",
+      headers: {
+        "Content-Type": "application/json",
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        ...(fetchOptions.headers || {}),
+      },
+      ...fetchOptions,
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Network request failed";
+    throw new Error(`Network error: ${message}. Check CORS and VITE_API_URL settings.`);
+  }
 
   if (response.status === 401 && !skipAuthRefresh) {
     const refreshed = await refreshAccessToken();
@@ -88,42 +102,42 @@ const refreshAccessToken = async () => {
 };
 
 export const startGame = async () =>
-  request(`${BASE_URL}/api/game/start`, {
+  request(toApiUrl("/api/game/start"), {
     method: "POST",
     body: JSON.stringify({}),
   });
 
-export const getGameState = async (gameId) => request(`${BASE_URL}/api/game/${gameId}/state`);
+export const getGameState = async (gameId) => request(toApiUrl(`/api/game/${gameId}/state`));
 
-export const getGameSceneUrl = (gameId) => `${BASE_URL}/api/game/${gameId}/scene.svg`;
+export const getGameSceneUrl = (gameId) => toApiUrl(`/api/game/${gameId}/scene.svg`);
 
 export const validateClick = async ({ gameId, targetName, x, y }) =>
-  request(`${BASE_URL}/api/validate`, {
+  request(toApiUrl("/api/validate"), {
     method: "POST",
     body: JSON.stringify({ gameId, targetName, x, y }),
   });
 
 export const finishGame = async (gameId) =>
-  request(`${BASE_URL}/api/game/finish`, {
+  request(toApiUrl("/api/game/finish"), {
     method: "POST",
     body: JSON.stringify({ gameId }),
   });
 
 export const submitScore = async ({ gameId }) =>
-  request(`${BASE_URL}/api/score`, {
+  request(toApiUrl("/api/score"), {
     method: "POST",
     body: JSON.stringify({ gameId }),
   });
 
 export const login = async ({ username, password }) =>
-  request(`${BASE_URL}/api/auth/login`, {
+  request(toApiUrl("/api/auth/login"), {
     method: "POST",
     skipAuthRefresh: true,
     body: JSON.stringify({ username, password }),
   });
 
 export const register = async ({ username, password }) =>
-  request(`${BASE_URL}/api/auth/register`, {
+  request(toApiUrl("/api/auth/register"), {
     method: "POST",
     skipAuthRefresh: true,
     body: JSON.stringify({ username, password }),
@@ -131,18 +145,18 @@ export const register = async ({ username, password }) =>
 
 export const logout = async () => {
   setAuthToken("");
-  return request(`${BASE_URL}/api/auth/logout`, {
+  return request(toApiUrl("/api/auth/logout"), {
     method: "POST",
     skipAuthRefresh: true,
     body: JSON.stringify({}),
   });
 };
 
-export const getCurrentUser = async () => request(`${BASE_URL}/api/auth/me`);
+export const getCurrentUser = async () => request(toApiUrl("/api/auth/me"));
 
-export const getLeaderboard = async () => request(`${BASE_URL}/api/leaderboard`);
+export const getLeaderboard = async () => request(toApiUrl("/api/leaderboard"));
 
 export const getLeaderboardPage = async ({ page = 1, pageSize = 10 } = {}) =>
-  request(`${BASE_URL}/api/leaderboard?page=${page}&pageSize=${pageSize}`);
+  request(toApiUrl(`/api/leaderboard?page=${page}&pageSize=${pageSize}`));
 
 export { BASE_URL };
