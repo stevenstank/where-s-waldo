@@ -74,7 +74,7 @@ function Home({ user, onRequireAuth }) {
   }, []);
 
   const buildSceneObjects = useCallback(() => {
-    const count = Math.floor(Math.random() * 220) + 220;
+    const count = Math.floor(Math.random() * 400) + 400;
     const shapes = ["circle", "square", "triangle", "block"];
     const generated = [];
 
