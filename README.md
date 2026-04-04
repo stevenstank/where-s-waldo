@@ -4,7 +4,7 @@
 Where's Waldo is a deployed full-stack game where players search for Waldo inside a procedurally generated scene. Waldo's position is selected by the backend, rendered by the frontend using exact coordinates, and validated server-side so click detection stays accurate.
 
 ## Live Demo
-- Frontend (Vercel): https://where-s-waldo-git-main-stevenstanks-projects.vercel.app
+- Frontend (Vercel): https://where-s-waldo-roan.vercel.app/
 - Backend (Render): https://where-s-waldo-pr8v.onrender.com
 
 ## Tech Stack
